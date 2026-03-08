@@ -24,20 +24,26 @@ pub struct ChatMessage {
     /// For role=tool: the tool_call_id this result corresponds to.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
+    /// For role=assistant: tool calls requested by the model.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tool_calls: Vec<ToolCall>,
 }
 
 impl ChatMessage {
     pub fn system(content: impl Into<String>) -> Self {
-        Self { role: Role::System, content: content.into(), tool_call_id: None }
+        Self { role: Role::System, content: content.into(), tool_call_id: None, tool_calls: vec![] }
     }
     pub fn user(content: impl Into<String>) -> Self {
-        Self { role: Role::User, content: content.into(), tool_call_id: None }
+        Self { role: Role::User, content: content.into(), tool_call_id: None, tool_calls: vec![] }
     }
     pub fn assistant(content: impl Into<String>) -> Self {
-        Self { role: Role::Assistant, content: content.into(), tool_call_id: None }
+        Self { role: Role::Assistant, content: content.into(), tool_call_id: None, tool_calls: vec![] }
+    }
+    pub fn assistant_with_tools(content: impl Into<String>, tool_calls: Vec<ToolCall>) -> Self {
+        Self { role: Role::Assistant, content: content.into(), tool_call_id: None, tool_calls }
     }
     pub fn tool_result(tool_call_id: impl Into<String>, content: impl Into<String>) -> Self {
-        Self { role: Role::Tool, content: content.into(), tool_call_id: Some(tool_call_id.into()) }
+        Self { role: Role::Tool, content: content.into(), tool_call_id: Some(tool_call_id.into()), tool_calls: vec![] }
     }
 }
 

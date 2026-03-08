@@ -2,6 +2,8 @@ pub mod cli;
 pub mod discord;
 pub mod manager;
 
+use std::path::PathBuf;
+
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
@@ -28,6 +30,8 @@ pub struct IncomingMessage {
 pub struct OutgoingResponse {
     pub content: String,
     pub thread_id: Option<String>,
+    /// File attachments to send (e.g. compiled PDF).
+    pub attachments: Vec<PathBuf>,
 }
 
 /// Unified channel interface.

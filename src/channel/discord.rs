@@ -65,7 +65,16 @@ impl Channel for DiscordChannel {
             .map_err(|_| anyhow::anyhow!("invalid discord channel id"))?;
 
         let channel = serenity::model::id::ChannelId(channel_id);
-        channel.say(http, &resp.content).await?;
+
+        if resp.attachments.is_empty() {
+            channel.say(http, &resp.content).await?;
+        } else {
+            use serenity::model::channel::AttachmentType;
+            let files: Vec<AttachmentType> = resp.attachments.iter()
+                .map(|p| AttachmentType::Path(p.as_path()))
+                .collect();
+            channel.send_files(http, files, |m| m.content(&resp.content)).await?;
+        }
 
         Ok(())
     }

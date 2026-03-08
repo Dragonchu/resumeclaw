@@ -29,11 +29,31 @@ impl OpenAiCompatProvider {
 
     fn build_messages(&self, messages: &[ChatMessage]) -> Vec<ApiMessage> {
         messages.iter().map(|m| {
+            let api_tool_calls = if m.tool_calls.is_empty() {
+                None
+            } else {
+                Some(m.tool_calls.iter().map(|tc| ApiToolCall {
+                    id: tc.id.clone(),
+                    tool_type: "function".to_string(),
+                    function: ApiFunction {
+                        name: tc.name.clone(),
+                        arguments: tc.arguments.to_string(),
+                    },
+                }).collect())
+            };
+
+            // Assistant messages with only tool_calls should have content: null
+            let content = if m.content.is_empty() && m.role == Role::Assistant {
+                None
+            } else {
+                Some(m.content.clone())
+            };
+
             ApiMessage {
                 role: m.role,
-                content: Some(m.content.clone()),
+                content,
                 tool_call_id: m.tool_call_id.clone(),
-                tool_calls: None,
+                tool_calls: api_tool_calls,
             }
         }).collect()
     }
@@ -142,7 +162,13 @@ struct ApiChoiceMessage {
 #[derive(Debug, Serialize, Deserialize)]
 struct ApiToolCall {
     id: String,
+    #[serde(rename = "type", default = "default_tool_type")]
+    tool_type: String,
     function: ApiFunction,
+}
+
+fn default_tool_type() -> String {
+    "function".to_string()
 }
 
 #[derive(Debug, Serialize, Deserialize)]

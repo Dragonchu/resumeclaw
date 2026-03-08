@@ -45,6 +45,9 @@ impl Channel for CliChannel {
 
     async fn respond(&self, _msg: &IncomingMessage, resp: OutgoingResponse) -> anyhow::Result<()> {
         println!("{}", resp.content);
+        for path in &resp.attachments {
+            println!("[attachment: {}]", path.display());
+        }
         Ok(())
     }
 
