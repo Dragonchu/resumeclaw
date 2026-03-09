@@ -1,6 +1,7 @@
 mod agent;
 mod channel;
 mod llm;
+mod mailer;
 mod proxy;
 mod tools;
 mod workspace;
@@ -40,6 +41,7 @@ async fn main() -> anyhow::Result<()> {
     tool_registry.register(tools::resume::ReadResume::new(&workspace));
     tool_registry.register(tools::resume::WriteResume::new(&workspace));
     tool_registry.register(tools::resume::CompileResume::new(&workspace));
+    tool_registry.register(tools::email::SendResumeEmail::new(&workspace));
 
     // Channels
     let mut channels = ChannelManager::new();
@@ -64,8 +66,7 @@ fn default_workspace_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
         if let Some(home) = std::env::var_os("HOME") {
-            return PathBuf::from(home)
-                .join("Library/Application Support/resumeclaw");
+            return PathBuf::from(home).join("Library/Application Support/resumeclaw");
         }
     }
 

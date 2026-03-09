@@ -53,7 +53,9 @@ pub fn create_provider(provider: &str, model: &str) -> Result<Arc<dyn LlmProvide
     if provider == "custom" {
         let base_url = env_or_err("LLM_BASE_URL", provider)?;
         let api_key = std::env::var("LLM_API_KEY").unwrap_or_default();
-        return Ok(Arc::new(openai_compat::OpenAiCompatProvider::new(base_url, api_key, model)));
+        return Ok(Arc::new(openai_compat::OpenAiCompatProvider::new(
+            base_url, api_key, model,
+        )));
     }
 
     if let Some(preset) = openai_compat_preset(provider) {
@@ -63,11 +65,15 @@ pub fn create_provider(provider: &str, model: &str) -> Result<Arc<dyn LlmProvide
             env_or_err(preset.env_key, provider)?
         };
         return Ok(Arc::new(openai_compat::OpenAiCompatProvider::new(
-            preset.base_url, api_key, model,
+            preset.base_url,
+            api_key,
+            model,
         )));
     }
 
-    Err(LlmError::UnsupportedProvider { provider: provider.to_string() })
+    Err(LlmError::UnsupportedProvider {
+        provider: provider.to_string(),
+    })
 }
 
 fn env_or_err(key: &str, provider: &str) -> Result<String, LlmError> {
