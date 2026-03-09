@@ -1,0 +1,46 @@
+% !TEX program = xelatex
+
+\documentclass{resume}
+\usepackage{zh_CN-fonts}
+\usepackage{linespacing_fix}
+
+\begin{document}
+\pagenumbering{gobble}
+
+\name{你的名字}
+
+\basicInfo{
+  \email{your.email@example.com} \textperiodcentered\ 
+  \phone{(+86) 123-4567-8901} \textperiodcentered\ 
+  \homepage[portfolio.example.com]{https://portfolio.example.com}
+}
+
+\section{教育背景}
+\datedsubsection{\textbf{示例大学}，中国上海}{2020 -- 2024}
+计算机科学与技术学士，GPA：3.8 / 4.0
+
+\section{工作经历}
+\datedsubsection{\textbf{示例公司}，远程}{2024 -- 至今}
+\role{软件工程师}{后端平台}
+\begin{itemize}
+  \item 负责内部工具与自动化流程建设，提升简历编辑与交付效率。
+  \item 与产品、设计协作推进用户功能上线，并持续优化使用体验。
+  \item 完善监控与发布检查流程，提高服务稳定性与交付质量。
+\end{itemize}
+
+\section{项目经历}
+\datedsubsection{\textbf{ResumeClaw}}{开源项目}
+\role{Rust、Tokio、LLM Tools}{https://github.com/Dragonchu/resumeclaw}
+\begin{itemize}
+  \item 维护基于聊天交互的 LaTeX 简历助手，支持读取、改写与编译简历。
+  \item 集成自动 PDF 编译能力，方便快速检查每次修改效果。
+\end{itemize}
+
+\section{技能}
+\begin{itemize}
+  \item 编程语言：Rust、Python、TypeScript、SQL
+  \item 工具链：Git、Docker、Linux、CI/CD
+  \item 语言能力：中文（母语）、英语（熟练）
+\end{itemize}
+
+\end{document}

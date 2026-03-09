@@ -1,0 +1,47 @@
+\NeedsTeXFormat{LaTeX2e}[1994/06/01]
+\ProvidesPackage{zh_CN-fonts}[2026/03/09 Simplified Chinese font setup for bundled resume templates]
+
+\RequirePackage{fontspec}
+\RequirePackage{xeCJK}
+
+\IfFileExists{fonts/FandolSong-Regular.otf}{
+  \setCJKmainfont[Path=fonts/,Extension=.otf]{FandolSong-Regular}
+}{
+  \IfFontExistsTF{Noto Serif CJK SC}{
+    \setCJKmainfont{Noto Serif CJK SC}
+  }{
+    \IfFontExistsTF{Source Han Serif SC}{
+      \setCJKmainfont{Source Han Serif SC}
+    }{
+      \IfFontExistsTF{FandolSong-Regular}{
+        \setCJKmainfont{FandolSong-Regular}
+      }{
+        \PackageError{zh_CN-fonts}{No supported CJK font found}{Expected bundled Fandol fonts under fonts/ or a system-installed CJK serif font.}
+      }
+    }
+  }
+}
+
+\IfFileExists{fonts/FandolHei-Regular.otf}{
+  \setCJKsansfont[Path=fonts/,Extension=.otf]{FandolHei-Regular}
+}{
+  \IfFontExistsTF{Noto Sans CJK SC}{
+    \setCJKsansfont{Noto Sans CJK SC}
+  }{
+    \IfFontExistsTF{Source Han Sans SC}{
+      \setCJKsansfont{Source Han Sans SC}
+    }{
+      \IfFontExistsTF{FandolHei-Regular}{
+        \setCJKsansfont{FandolHei-Regular}
+      }{}
+    }
+  }
+}
+
+\IfFileExists{fonts/FandolFang-Regular.otf}{
+  \setCJKmonofont[Path=fonts/,Extension=.otf]{FandolFang-Regular}
+}{
+  \IfFontExistsTF{FandolFang-Regular}{
+    \setCJKmonofont{FandolFang-Regular}
+  }{}
+}

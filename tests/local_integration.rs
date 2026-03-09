@@ -29,7 +29,7 @@ impl Drop for TestDirGuard {
 fn unique_test_dir(name: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("system time before unix epoch")
+        .expect("system time is before UNIX epoch")
         .as_nanos();
     std::env::temp_dir().join(format!("resumeclaw-{name}-{nanos}"))
 }
@@ -188,8 +188,8 @@ fn cargo_run_defaults_to_dev_mock_provider_and_example_template() {
     let resume =
         fs::read_to_string(workspace_dir.join("resume.tex")).expect("read workspace resume");
     assert!(
-        resume.contains("Dev Example Resume"),
-        "workspace resume did not come from bundled dev template:\n{resume}"
+        resume.contains("\\documentclass{resume}"),
+        "workspace resume did not come from bundled default template:\n{resume}"
     );
 }
 
@@ -243,7 +243,7 @@ fn cargo_run_dev_mode_supports_listing_and_direct_tool_calls() {
         "stdout did not contain direct tool execution output:\n{stdout}"
     );
     assert!(
-        stdout.contains("Dev Example Resume"),
+        stdout.contains("\\documentclass{resume}"),
         "stdout did not contain resume content from direct tool execution:\n{stdout}"
     );
 }

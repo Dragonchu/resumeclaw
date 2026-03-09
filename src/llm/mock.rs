@@ -12,7 +12,6 @@ use super::provider::{
 const DEV_REPL_FALLBACK_PREFIX: &str = "开发模式仍在使用内置 Mock Provider。\n已收到你的消息：";
 const DEV_REPL_FALLBACK_SUFFIX: &str =
     "\n这是零配置调试回显；如需真实多轮对话，请配置 LLM_PROVIDER。";
-
 #[derive(Debug, Deserialize)]
 struct MockCompletionStep {
     #[serde(default)]
@@ -77,7 +76,7 @@ impl MockProvider {
 
     fn next_step(&self, messages: &[ChatMessage]) -> Result<CompletionResponse, LlmError> {
         let mut steps = self.steps.lock().map_err(|_| LlmError::RequestFailed {
-            reason: "internal error: mock provider lock poisoned; a previous mock LLM call likely panicked".to_string(),
+            reason: "internal error: mock provider lock poisoned; a previous mock LLM call panicked".to_string(),
         })?;
         let step = match steps.pop_front() {
             Some(step) => step,

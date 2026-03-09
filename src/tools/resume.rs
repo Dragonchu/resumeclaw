@@ -229,7 +229,7 @@ Test
             &compiler_path,
             r#"#!/bin/sh
 printf '%s\n' "$@" > tectonic.args
-: > resume.pdf
+> resume.pdf
 "#,
         )
         .expect("write fake tectonic");
