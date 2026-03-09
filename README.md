@@ -28,7 +28,7 @@
 
 - Rust toolchain (cargo)
 - XeLaTeX（macOS: `brew install --cask mactex`，Linux: `apt install texlive-xetex`）
-- 简历模板仓库（默认从 `../resume` 读取，包含 `.cls`、字体等）
+- （可选）外部简历模板仓库，用于覆盖项目内置模板
 
 ### 环境变量
 
@@ -44,7 +44,8 @@ DEEPSEEK_API_KEY=sk-xxx        # 对应 provider 的 API Key
 DISCORD_BOT_TOKEN=xxx
 
 # 可选 - 路径
-RESUME_TEMPLATE_DIR=../resume  # 简历模板目录，默认 ../resume
+RESUME_TEMPLATE_DIR=../resume  # 外部模板目录；不设置时使用仓库内置模板
+RESUME_TEMPLATE=resume.tex     # 初始模板文件名，可设为 resume-zh_CN.tex
 WORKSPACE_DIR=                 # 工作区目录，默认为平台标准路径（见下方说明）
 
 # 可选 - 自定义 LLM 端点（LLM_PROVIDER=custom 时使用）
@@ -62,7 +63,7 @@ LLM_API_KEY=xxx
 | Linux   | `$XDG_DATA_HOME/resumeclaw`（默认 `~/.local/share/resumeclaw`） |
 | Fallback | `~/.resumeclaw`                           |
 
-首次启动会自动从模板目录复制 `.cls`、`.sty` 等支持文件，并 symlink 字体目录。
+首次启动会自动从模板目录复制 `.cls`、`.sty` 等支持文件，并在工作区生成 `resume.tex`。默认使用仓库内置英文模板；如需中文模板，可设置 `RESUME_TEMPLATE=resume-zh_CN.tex` 后再启动。
 
 ### 启动服务
 
@@ -109,7 +110,7 @@ proxychains4 cargo run
 本项目受到以下开源项目的启发，在此表示感谢：
 
 - [ironclaw](https://github.com/nearai/ironclaw) — Rust 实现的多渠道 AI Agent 框架，本项目的架构设计参考了其频道抽象和 LLM Provider 模式。MIT License.
-- [resume](https://github.com/billryan/resume) — 简洁优雅的 LaTeX 中英文简历模板，本项目使用其模板类和字体配置作为简历编辑基础。MIT License.
+- [resume](https://github.com/billryan/resume) — 简洁优雅的 LaTeX 中英文简历模板，本项目内置默认模板的版式设计参考了该项目。MIT License.
 
 ## License
 

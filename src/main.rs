@@ -23,11 +23,12 @@ async fn main() -> anyhow::Result<()> {
     // Workspace
     let template_dir = std::env::var("RESUME_TEMPLATE_DIR")
         .map(PathBuf::from)
-        .unwrap_or_else(|_| PathBuf::from("../resume"));
+        .unwrap_or_else(|_| bundled_template_dir());
     let workspace_dir = std::env::var("WORKSPACE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| default_workspace_dir());
-    let workspace = workspace::init(&template_dir, &workspace_dir)?;
+    let initial_template = std::env::var("RESUME_TEMPLATE").ok();
+    let workspace = workspace::init(&template_dir, &workspace_dir, initial_template.as_deref())?;
     tracing::info!(path = %workspace.display(), "workspace initialized");
 
     // LLM
@@ -64,8 +65,7 @@ fn default_workspace_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
         if let Some(home) = std::env::var_os("HOME") {
-            return PathBuf::from(home)
-                .join("Library/Application Support/resumeclaw");
+            return PathBuf::from(home).join("Library/Application Support/resumeclaw");
         }
     }
 
@@ -82,4 +82,10 @@ fn default_workspace_dir() -> PathBuf {
     // Fallback
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     PathBuf::from(home).join(".resumeclaw")
+}
+
+fn bundled_template_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("templates")
+        .join("default")
 }
