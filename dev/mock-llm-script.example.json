@@ -1,0 +1,15 @@
+[
+  {
+    "tool_calls": [
+      {
+        "id": "call-read-dev-resume",
+        "name": "read_resume",
+        "arguments": {}
+      }
+    ]
+  },
+  {
+    "content": "开发模式已启用：当前正在使用仓库内置的 Mock Provider 和 dev 示例简历。你现在可以继续调试工具调用，或配置真实的 LLM_PROVIDER / API Key 切换到生产链路。",
+    "tool_calls": []
+  }
+]

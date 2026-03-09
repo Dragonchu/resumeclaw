@@ -130,3 +130,53 @@ Original Resume
         "workspace resume was not updated:\n{resume}"
     );
 }
+
+#[test]
+fn cargo_run_defaults_to_dev_mock_provider_and_example_template() {
+    let root = TestDirGuard::new(unique_test_dir("zero-config"));
+    let workspace_dir = root.path().join("workspace");
+    fs::create_dir_all(root.path()).expect("create test root");
+
+    let exe = env!("CARGO_BIN_EXE_resumeclaw");
+    let mut child = Command::new(exe)
+        .current_dir(root.path())
+        .env_remove("DISCORD_BOT_TOKEN")
+        .env_remove("LLM_PROVIDER")
+        .env_remove("LLM_MODEL")
+        .env_remove("MOCK_LLM_SCRIPT_PATH")
+        .env_remove("RESUME_TEMPLATE_DIR")
+        .env("WORKSPACE_DIR", &workspace_dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn resumeclaw");
+
+    {
+        let stdin = child.stdin.as_mut().expect("child stdin");
+        stdin
+            .write_all("进入开发模式\n".as_bytes())
+            .expect("write stdin");
+    }
+
+    let output = child.wait_with_output().expect("wait for process");
+    assert!(
+        output.status.success(),
+        "process failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("开发模式已启用"),
+        "stdout did not contain bundled mock response:\n{stdout}"
+    );
+
+    let resume =
+        fs::read_to_string(workspace_dir.join("resume.tex")).expect("read workspace resume");
+    assert!(
+        resume.contains("Dev Example Resume"),
+        "workspace resume did not come from bundled dev template:\n{resume}"
+    );
+}
