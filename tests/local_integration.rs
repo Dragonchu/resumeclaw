@@ -4,6 +4,28 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+struct TestDirGuard {
+    path: PathBuf,
+}
+
+impl TestDirGuard {
+    fn new(path: PathBuf) -> Self {
+        Self { path }
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
+    }
+}
+
+impl Drop for TestDirGuard {
+    fn drop(&mut self) {
+        if self.path.exists() {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+}
+
 fn unique_test_dir(name: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -21,10 +43,10 @@ fn write_file(path: &Path, content: &str) {
 
 #[test]
 fn cli_flow_can_run_with_mock_llm_script() {
-    let root = unique_test_dir("local-integration");
-    let template_dir = root.join("template");
-    let workspace_dir = root.join("workspace");
-    let script_path = root.join("mock-llm.json");
+    let root = TestDirGuard::new(unique_test_dir("local-integration"));
+    let template_dir = root.path().join("template");
+    let workspace_dir = root.path().join("workspace");
+    let script_path = root.path().join("mock-llm.json");
 
     write_file(
         &template_dir.join("resume.tex"),
@@ -67,6 +89,8 @@ Original Resume
 
     let exe = env!("CARGO_BIN_EXE_resumeclaw");
     let mut child = Command::new(exe)
+        .current_dir(root.path())
+        .env_remove("DISCORD_BOT_TOKEN")
         .env("LLM_PROVIDER", "mock")
         .env("LLM_MODEL", "mock-local")
         .env("MOCK_LLM_SCRIPT_PATH", &script_path)
@@ -105,6 +129,4 @@ Original Resume
         resume.contains("Updated by local integration test"),
         "workspace resume was not updated:\n{resume}"
     );
-
-    fs::remove_dir_all(root).expect("remove test temp dir");
 }

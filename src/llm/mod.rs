@@ -44,6 +44,7 @@ fn openai_compat_preset(provider: &str) -> Option<ProviderPreset> {
 /// Supported:
 /// - OpenAI-compatible: "openai", "deepseek", "ollama", "groq", "together"
 /// - Native: "anthropic"
+/// - Testing: "mock" (reads MOCK_LLM_SCRIPT_PATH)
 /// - Custom: "custom" (reads LLM_BASE_URL + LLM_API_KEY)
 pub fn create_provider(provider: &str, model: &str) -> Result<Arc<dyn LlmProvider>, LlmError> {
     if provider == "anthropic" {
