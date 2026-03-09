@@ -152,9 +152,10 @@ fn cargo_run_defaults_to_dev_mock_provider_and_example_template() {
         .spawn()
         .expect("spawn resumeclaw");
 
-    // "进入开发模式" means "enter development mode" and exercises the bundled
-    // zero-config mock path with a real CLI message.
-    let dev_mode_input = "进入开发模式\n";
+    // The first line consumes the bundled scripted example, and the second line
+    // verifies that zero-config dev mode keeps responding like a REPL instead
+    // of surfacing "mock script exhausted" errors.
+    let dev_mode_input = "进入开发模式\n第二条消息\n";
     {
         let stdin = child.stdin.as_mut().expect("child stdin");
         stdin
@@ -174,6 +175,14 @@ fn cargo_run_defaults_to_dev_mock_provider_and_example_template() {
     assert!(
         stdout.contains("开发模式已启用"),
         "stdout did not contain bundled mock response:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("已收到你的消息：第二条消息"),
+        "stdout did not contain the dev REPL fallback response:\n{stdout}"
+    );
+    assert!(
+        !stdout.contains("mock script exhausted before conversation completed"),
+        "stdout still exposed mock exhaustion:\n{stdout}"
     );
 
     let resume =

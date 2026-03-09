@@ -38,6 +38,11 @@ async fn main() -> anyhow::Result<()> {
     if let Some(mock_script_path) = llm_config.mock_script_path.as_ref() {
         std::env::set_var("MOCK_LLM_SCRIPT_PATH", mock_script_path);
     }
+    if llm_config.mock_repeat_on_exhaustion {
+        std::env::set_var("MOCK_LLM_REPEAT_ON_EXHAUSTION", "1");
+    } else {
+        std::env::remove_var("MOCK_LLM_REPEAT_ON_EXHAUSTION");
+    }
     let llm = llm::create_provider(&llm_config.provider, &llm_config.model)?;
 
     // Tools
@@ -67,6 +72,7 @@ struct LlmConfig {
     provider: String,
     model: String,
     mock_script_path: Option<PathBuf>,
+    mock_repeat_on_exhaustion: bool,
     uses_dev_examples: bool,
 }
 
@@ -87,6 +93,7 @@ fn resolve_llm_config() -> LlmConfig {
             provider,
             model,
             mock_script_path,
+            mock_repeat_on_exhaustion: false,
             uses_dev_examples: false,
         };
     }
@@ -100,6 +107,7 @@ fn resolve_llm_config() -> LlmConfig {
         provider: "mock".to_string(),
         model: "mock-dev".to_string(),
         mock_script_path: Some(script),
+        mock_repeat_on_exhaustion: true,
         uses_dev_examples: true,
     }
 }
