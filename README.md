@@ -59,7 +59,7 @@ SMTP_FROM=bot@example.com
 SMTP_FROM_NAME=resumeclaw
 SMTP_USERNAME=bot@example.com
 SMTP_PASSWORD=xxx
-SMTP_SECURITY=starttls       # starttls / tls / plain
+SMTP_SECURITY=starttls       # starttls / tls(也接受 ssl) / plain
 ```
 
 ### 工作区路径
