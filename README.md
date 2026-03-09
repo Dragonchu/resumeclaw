@@ -96,6 +96,7 @@ cargo test --test local_integration
 ```json
 [
   {
+    "expect_last_user_message": "请先读取我的简历",
     "tool_calls": [
       { "id": "call-read", "name": "read_resume", "arguments": {} }
     ]
@@ -106,6 +107,8 @@ cargo test --test local_integration
   }
 ]
 ```
+
+其中 `expect_last_user_message` 是可选字段，用来断言 mock fixture 收到的最后一条用户消息，适合在本地集成测试里校验 CLI 输入是否真的走到了 LLM 层。
 
 然后运行：
 

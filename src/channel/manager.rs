@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex;
 
 use tokio::sync::mpsc;
 
@@ -9,7 +10,7 @@ use crate::channel::{Channel, IncomingMessage, OutgoingResponse};
 pub struct ChannelManager {
     channels: HashMap<String, Arc<dyn Channel>>,
     rx: mpsc::UnboundedReceiver<IncomingMessage>,
-    tx: Option<mpsc::UnboundedSender<IncomingMessage>>,
+    tx: Mutex<Option<mpsc::UnboundedSender<IncomingMessage>>>,
 }
 
 impl ChannelManager {
@@ -18,7 +19,7 @@ impl ChannelManager {
         Self {
             channels: HashMap::new(),
             rx,
-            tx: Some(tx),
+            tx: Mutex::new(Some(tx)),
         }
     }
 
@@ -29,9 +30,14 @@ impl ChannelManager {
 
     /// Start all registered channels. Each channel pushes messages
     /// into the shared sender; the manager receives them from `rx`.
-    pub async fn start_all(&mut self) -> anyhow::Result<()> {
+    ///
+    /// This is a one-time initialization step and should not be called
+    /// concurrently.
+    pub async fn start_all(&self) -> anyhow::Result<()> {
         let tx = self
             .tx
+            .lock()
+            .map_err(|_| anyhow::anyhow!("channel sender lock poisoned"))?
             .take()
             .ok_or_else(|| anyhow::anyhow!("channels already started"))?;
         for channel in self.channels.values() {

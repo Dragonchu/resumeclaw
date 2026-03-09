@@ -6,11 +6,13 @@ use async_trait::async_trait;
 use serde::Deserialize;
 
 use super::provider::{
-    ChatMessage, CompletionResponse, LlmError, LlmProvider, ToolCall, ToolDefinition,
+    ChatMessage, CompletionResponse, LlmError, LlmProvider, Role, ToolCall, ToolDefinition,
 };
 
 #[derive(Debug, Deserialize)]
 struct MockCompletionStep {
+    #[serde(default)]
+    expect_last_user_message: Option<String>,
     #[serde(default)]
     content: Option<String>,
     #[serde(default)]
@@ -56,13 +58,28 @@ impl MockProvider {
         })
     }
 
-    fn next_step(&self) -> Result<CompletionResponse, LlmError> {
+    fn next_step(&self, messages: &[ChatMessage]) -> Result<CompletionResponse, LlmError> {
         let mut steps = self.steps.lock().map_err(|_| LlmError::RequestFailed {
-            reason: "mock script lock poisoned".to_string(),
+            reason: "internal error: mock provider lock poisoned; a previous mock LLM call likely panicked".to_string(),
         })?;
         let step = steps.pop_front().ok_or_else(|| LlmError::RequestFailed {
             reason: "mock script exhausted before conversation completed".to_string(),
         })?;
+        if let Some(expected) = step.expect_last_user_message.as_deref() {
+            let actual = messages
+                .iter()
+                .rev()
+                .find(|message| message.role == Role::User)
+                .map(|message| message.content.as_str());
+            if actual != Some(expected) {
+                return Err(LlmError::RequestFailed {
+                    reason: format!(
+                        "mock script expected last user message {:?}, got {:?}",
+                        expected, actual
+                    ),
+                });
+            }
+        }
         Ok(CompletionResponse {
             content: step.content,
             tool_calls: step.tool_calls,
@@ -76,16 +93,16 @@ impl LlmProvider for MockProvider {
         &self.model
     }
 
-    async fn complete(&self, _messages: Vec<ChatMessage>) -> Result<String, LlmError> {
-        let step = self.next_step()?;
+    async fn complete(&self, messages: Vec<ChatMessage>) -> Result<String, LlmError> {
+        let step = self.next_step(&messages)?;
         Ok(step.content.unwrap_or_default())
     }
 
     async fn complete_with_tools(
         &self,
-        _messages: Vec<ChatMessage>,
+        messages: Vec<ChatMessage>,
         _tools: Vec<ToolDefinition>,
     ) -> Result<CompletionResponse, LlmError> {
-        self.next_step()
+        self.next_step(&messages)
     }
 }

@@ -38,6 +38,7 @@ Original Resume
         &script_path,
         r#"[
   {
+    "expect_last_user_message": "请把简历改成测试版本",
     "tool_calls": [
       {
         "id": "call-read",
@@ -105,5 +106,5 @@ Original Resume
         "workspace resume was not updated:\n{resume}"
     );
 
-    let _ = fs::remove_dir_all(root);
+    fs::remove_dir_all(root).expect("remove test temp dir");
 }
