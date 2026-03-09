@@ -45,7 +45,7 @@ DISCORD_BOT_TOKEN=xxx
 
 # 可选 - 路径
 RESUME_TEMPLATE_DIR=../resume  # 外部模板目录；不设置时使用仓库内置模板
-RESUME_TEMPLATE=resume.tex     # 初始模板文件名，可设为 resume-zh_CN.tex
+RESUME_TEMPLATE=resume-zh_CN.tex  # 初始模板文件名，填写模板目录下任意 .tex 文件名（仅文件名，不允许包含路径分隔符）
 WORKSPACE_DIR=                 # 工作区目录，默认为平台标准路径（见下方说明）
 
 # 可选 - 自定义 LLM 端点（LLM_PROVIDER=custom 时使用）
@@ -63,7 +63,7 @@ LLM_API_KEY=xxx
 | Linux   | `$XDG_DATA_HOME/resumeclaw`（默认 `~/.local/share/resumeclaw`） |
 | Fallback | `~/.resumeclaw`                           |
 
-首次启动会自动从模板目录复制 `.cls`、`.sty` 等支持文件，并在工作区生成 `resume.tex`。默认使用仓库内置英文模板；如需中文模板，可设置 `RESUME_TEMPLATE=resume-zh_CN.tex` 后再启动。
+首次启动会自动从模板目录复制 `.cls`、`.sty` 等支持文件，并在工作区生成 `resume.tex`。模板目录下任意 `.tex` 文件都会被视为可选模板；默认优先使用内置英文模板，如需中文模板可设置 `RESUME_TEMPLATE=resume-zh_CN.tex` 后再启动。
 
 ### 启动服务
 

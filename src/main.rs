@@ -21,9 +21,10 @@ async fn main() -> anyhow::Result<()> {
     proxy::init();
 
     // Workspace
-    let template_dir = std::env::var("RESUME_TEMPLATE_DIR")
-        .map(PathBuf::from)
-        .unwrap_or_else(|_| bundled_template_dir());
+    let template_dir = match std::env::var("RESUME_TEMPLATE_DIR") {
+        Ok(path) => PathBuf::from(path),
+        Err(_) => bundled_template_dir()?,
+    };
     let workspace_dir = std::env::var("WORKSPACE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| default_workspace_dir());
@@ -84,8 +85,27 @@ fn default_workspace_dir() -> PathBuf {
     PathBuf::from(home).join(".resumeclaw")
 }
 
-fn bundled_template_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+fn bundled_template_dir() -> anyhow::Result<PathBuf> {
+    if let Some(candidate) = std::env::current_exe()
+        .ok()
+        .and_then(|exe_path| exe_path.parent().map(|exe_dir| exe_dir.join("templates").join("default")))
+        .filter(|candidate| candidate.is_dir())
+    {
+        return Ok(candidate);
+    }
+
+    let manifest_templates = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("templates")
-        .join("default")
+        .join("default");
+    if manifest_templates.is_dir() {
+        return Ok(manifest_templates);
+    }
+
+    anyhow::bail!(
+        "bundled template directory not found next to the executable or under {}",
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("templates")
+            .join("default")
+            .display()
+    )
 }
