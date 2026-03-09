@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 /// Initialize the workspace directory.
 ///
 /// - Copies supporting LaTeX files (.cls, .sty, etc.) from template_dir
-/// - Symlinks the fonts/ directory
+/// - Copies the fonts/ directory when present
 /// - Copies the initial .tex file if none exists
 ///
 /// Returns the workspace path.
@@ -21,21 +21,7 @@ pub fn init(
     std::fs::create_dir_all(workspace_dir)?;
 
     copy_support_files(template_dir, workspace_dir)?;
-
-    // Symlink fonts directory (avoid copying large font files)
-    let fonts_src = template_dir.join("fonts");
-    let fonts_dst = workspace_dir.join("fonts");
-    if fonts_src.exists() {
-        // Remove stale symlink or existing entry, then recreate
-        if fonts_dst.symlink_metadata().is_ok() {
-            let _ = std::fs::remove_file(&fonts_dst);
-        }
-        if !fonts_dst.exists() {
-            #[cfg(unix)]
-            std::os::unix::fs::symlink(std::fs::canonicalize(&fonts_src)?, &fonts_dst)?;
-            tracing::debug!("symlinked fonts directory");
-        }
-    }
+    copy_support_directories(template_dir, workspace_dir)?;
 
     // Copy initial resume template if no resume.tex exists yet
     let tex_dst = workspace_dir.join("resume.tex");
@@ -135,6 +121,36 @@ fn copy_support_files(template_dir: &Path, workspace_dir: &Path) -> anyhow::Resu
         if !dst.try_exists().unwrap_or(false) {
             std::fs::copy(entry.path(), &dst)?;
             tracing::debug!(file = name, "copied template support file");
+        }
+    }
+
+    Ok(())
+}
+
+fn copy_support_directories(template_dir: &Path, workspace_dir: &Path) -> anyhow::Result<()> {
+    let fonts_src = template_dir.join("fonts");
+    if !fonts_src.is_dir() {
+        return Ok(());
+    }
+
+    copy_dir_all_if_missing(&fonts_src, &workspace_dir.join("fonts"))?;
+    tracing::debug!("copied fonts directory");
+    Ok(())
+}
+
+fn copy_dir_all_if_missing(src: &Path, dst: &Path) -> anyhow::Result<()> {
+    std::fs::create_dir_all(dst)?;
+
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+        let file_type = entry.file_type()?;
+
+        if file_type.is_dir() {
+            copy_dir_all_if_missing(&src_path, &dst_path)?;
+        } else if file_type.is_file() && !dst_path.try_exists().unwrap_or(false) {
+            std::fs::copy(src_path, dst_path)?;
         }
     }
 
@@ -288,6 +304,34 @@ mod tests {
     }
 
     #[test]
+    fn copies_fonts_directory_recursively() {
+        let template_dir = TestDir::new("template-fonts");
+        let workspace_dir = TestDir::new("workspace-fonts");
+        let template_fonts = template_dir.path().join("fonts");
+
+        std::fs::create_dir_all(template_fonts.join("nested")).expect("create font dirs");
+        write_file(template_dir.path(), "resume.cls", "class");
+        write_file(template_dir.path(), "resume.tex", "english");
+        std::fs::write(template_fonts.join("FandolSong-Regular.otf"), "song")
+            .expect("write font");
+        std::fs::write(template_fonts.join("nested/license.txt"), "license")
+            .expect("write nested file");
+
+        init(template_dir.path(), workspace_dir.path(), None).expect("initialize workspace");
+
+        assert_eq!(
+            std::fs::read_to_string(workspace_dir.path().join("fonts/FandolSong-Regular.otf"))
+                .expect("read copied font"),
+            "song"
+        );
+        assert_eq!(
+            std::fs::read_to_string(workspace_dir.path().join("fonts/nested/license.txt"))
+                .expect("read copied nested file"),
+            "license"
+        );
+    }
+
+    #[test]
     fn treats_any_tex_file_as_a_template() {
         let template_dir = TestDir::new("template-list");
 
@@ -354,12 +398,23 @@ mod tests {
         let bundled_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates/default");
         let chinese_template = std::fs::read_to_string(bundled_dir.join("resume-zh_CN.tex"))
             .expect("read bundled chinese template");
+        let chinese_fonts =
+            std::fs::read_to_string(bundled_dir.join("zh_CN-fonts.sty")).expect("read fonts sty");
 
         assert!(bundled_dir.join("resume.cls").is_file());
         assert!(bundled_dir.join("zh_CN-fonts.sty").is_file());
         assert!(bundled_dir.join("linespacing_fix.sty").is_file());
+        assert!(bundled_dir.join("fonts/FandolSong-Regular.otf").is_file());
+        assert!(bundled_dir.join("fonts/FandolHei-Regular.otf").is_file());
+        assert!(bundled_dir.join("fonts/FandolFang-Regular.otf").is_file());
+        assert!(bundled_dir.join("fonts/COPYING.fandol").is_file());
         assert!(chinese_template.contains("\\usepackage{zh_CN-fonts}"));
         assert!(chinese_template.contains("\\usepackage{linespacing_fix}"));
+        assert!(chinese_fonts.contains("\\IfFileExists{fonts/FandolSong-Regular.otf}"));
+        assert!(
+            chinese_fonts
+                .contains("\\setCJKmainfont[Path=fonts/,Extension=.otf]{FandolSong-Regular}")
+        );
     }
 
     #[test]

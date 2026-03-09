@@ -4,32 +4,44 @@
 \RequirePackage{fontspec}
 \RequirePackage{xeCJK}
 
-\IfFontExistsTF{Noto Serif CJK SC}{
-  \setCJKmainfont{Noto Serif CJK SC}
+\IfFileExists{fonts/FandolSong-Regular.otf}{
+  \setCJKmainfont[Path=fonts/,Extension=.otf]{FandolSong-Regular}
 }{
-  \IfFontExistsTF{Source Han Serif SC}{
-    \setCJKmainfont{Source Han Serif SC}
+  \IfFontExistsTF{Noto Serif CJK SC}{
+    \setCJKmainfont{Noto Serif CJK SC}
   }{
-    \IfFontExistsTF{FandolSong-Regular}{
-      \setCJKmainfont{FandolSong-Regular}
+    \IfFontExistsTF{Source Han Serif SC}{
+      \setCJKmainfont{Source Han Serif SC}
     }{
-      \PackageError{zh_CN-fonts}{No supported CJK font found}{Install Noto Serif CJK SC, Source Han Serif SC, or a TeX distribution that provides FandolSong-Regular.}
+      \IfFontExistsTF{FandolSong-Regular}{
+        \setCJKmainfont{FandolSong-Regular}
+      }{
+        \PackageError{zh_CN-fonts}{No supported CJK font found}{Expected bundled Fandol fonts under fonts/ or a system-installed CJK serif font.}
+      }
     }
   }
 }
 
-\IfFontExistsTF{Noto Sans CJK SC}{
-  \setCJKsansfont{Noto Sans CJK SC}
+\IfFileExists{fonts/FandolHei-Regular.otf}{
+  \setCJKsansfont[Path=fonts/,Extension=.otf]{FandolHei-Regular}
 }{
-  \IfFontExistsTF{Source Han Sans SC}{
-    \setCJKsansfont{Source Han Sans SC}
+  \IfFontExistsTF{Noto Sans CJK SC}{
+    \setCJKsansfont{Noto Sans CJK SC}
   }{
-    \IfFontExistsTF{FandolHei-Regular}{
-      \setCJKsansfont{FandolHei-Regular}
-    }{}
+    \IfFontExistsTF{Source Han Sans SC}{
+      \setCJKsansfont{Source Han Sans SC}
+    }{
+      \IfFontExistsTF{FandolHei-Regular}{
+        \setCJKsansfont{FandolHei-Regular}
+      }{}
+    }
   }
 }
 
-\IfFontExistsTF{FandolFang-Regular}{
-  \setCJKmonofont{FandolFang-Regular}
-}{}
+\IfFileExists{fonts/FandolFang-Regular.otf}{
+  \setCJKmonofont[Path=fonts/,Extension=.otf]{FandolFang-Regular}
+}{
+  \IfFontExistsTF{FandolFang-Regular}{
+    \setCJKmonofont{FandolFang-Regular}
+  }{}
+}
