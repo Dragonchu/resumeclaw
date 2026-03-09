@@ -115,6 +115,12 @@ cargo run
 cargo test --test local_integration
 ```
 
+### 发布构建流程
+
+仓库现在使用 `cargo-dist` 生成 GitHub Actions 发布流程，配置文件位于 `dist-workspace.toml`，工作流位于 `.github/workflows/release.yml`。
+
+推送符合语义化版本格式的 tag（例如 `v0.1.0`）后，工作流会调用 `dist` 构建发布产物并上传到 GitHub Release。
+
 该测试会：
 
 - 使用 CLI channel，而不是 Discord
