@@ -9,6 +9,10 @@ use super::provider::{
     ChatMessage, CompletionResponse, LlmError, LlmProvider, Role, ToolCall, ToolDefinition,
 };
 
+const DEV_REPL_FALLBACK_PREFIX: &str = "开发模式仍在使用内置 Mock Provider。\n已收到你的消息：";
+const DEV_REPL_FALLBACK_SUFFIX: &str =
+    "\n这是零配置调试回显；如需真实多轮对话，请配置 LLM_PROVIDER。";
+
 #[derive(Debug, Deserialize)]
 struct MockCompletionStep {
     #[serde(default)]
@@ -37,6 +41,13 @@ impl MockProvider {
         Self::from_path_with_options(&path, model, repeat_on_exhaustion_from_env())
     }
 
+    #[allow(dead_code)]
+    pub fn from_path(path: impl AsRef<Path>, model: &str) -> Result<Self, LlmError> {
+        Self::from_path_with_options(path, model, false)
+    }
+
+    /// Load a mock script from disk, optionally enabling a REPL-style fallback
+    /// that keeps returning echo responses after the scripted steps are used up.
     fn from_path_with_options(
         path: impl AsRef<Path>,
         model: &str,
@@ -119,15 +130,16 @@ impl LlmProvider for MockProvider {
     }
 }
 
+/// Read `MOCK_LLM_REPEAT_ON_EXHAUSTION` and enable repeat mode when it is set
+/// to `1`, `true`, or `yes` in any letter case.
 fn repeat_on_exhaustion_from_env() -> bool {
-    matches!(
-        std::env::var("MOCK_LLM_REPEAT_ON_EXHAUSTION")
-            .ok()
-            .as_deref(),
-        Some("1" | "true" | "TRUE" | "yes" | "YES")
-    )
+    std::env::var("MOCK_LLM_REPEAT_ON_EXHAUSTION")
+        .ok()
+        .is_some_and(|value| matches!(value.to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
 }
 
+/// Build the REPL-style echo response used after the scripted mock conversation
+/// is exhausted while repeat-on-exhaustion mode is enabled.
 fn repl_fallback_response(messages: &[ChatMessage]) -> CompletionResponse {
     let last_user_message = messages
         .iter()
@@ -135,11 +147,11 @@ fn repl_fallback_response(messages: &[ChatMessage]) -> CompletionResponse {
         .find(|message| message.role == Role::User)
         .map(|message| message.content.trim())
         .filter(|message| !message.is_empty())
-        .unwrap_or("（空消息）");
+        .unwrap_or("空消息");
 
     CompletionResponse {
         content: Some(format!(
-            "开发模式仍在使用内置 Mock Provider。\n已收到你的消息：{last_user_message}\n这是零配置调试回显；如需真实多轮对话，请配置 LLM_PROVIDER。"
+            "{DEV_REPL_FALLBACK_PREFIX}{last_user_message}{DEV_REPL_FALLBACK_SUFFIX}"
         )),
         tool_calls: vec![],
     }

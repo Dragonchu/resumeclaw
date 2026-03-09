@@ -72,6 +72,8 @@ struct LlmConfig {
     provider: String,
     model: String,
     mock_script_path: Option<PathBuf>,
+    /// When true, the bundled dev mock keeps replying with a simple echo once
+    /// the example script is exhausted, instead of surfacing a mock error.
     mock_repeat_on_exhaustion: bool,
     uses_dev_examples: bool,
 }
