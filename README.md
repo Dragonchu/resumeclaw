@@ -87,6 +87,7 @@ cargo run
 - `/read_resume`：直接执行无参工具
 - `/write_resume {"content":"...完整 tex 内容..."}`：直接传 JSON 参数调用工具
 - 对于只有 `content` 字符串参数的工具，也可以直接写成 `/write_resume ...`
+- 在 REPL 里如果需要给 `/write_resume` 输入多行内容，可以先单独输入 `/write_resume` 进入多行模式，最后用 `/end` 提交，或用 `/cancel` 取消
 
 直接输入普通文本时，消息仍会按原流程发送给 Agent；如果工具产出 PDF 等附件，在 macOS CLI 下会直接调用 `open` 打开文件。
 
