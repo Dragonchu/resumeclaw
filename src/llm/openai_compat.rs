@@ -18,11 +18,7 @@ pub struct OpenAiCompatProvider {
 }
 
 impl OpenAiCompatProvider {
-    pub fn new(
-        base_url: impl Into<String>,
-        api_key: impl Into<String>,
-        model: impl Into<String>,
-    ) -> Self {
+    pub fn new(base_url: impl Into<String>, api_key: impl Into<String>, model: impl Into<String>) -> Self {
         Self {
             client: crate::proxy::build_client().expect("failed to build HTTP client"),
             base_url: base_url.into().trim_end_matches('/').to_string(),
@@ -32,61 +28,48 @@ impl OpenAiCompatProvider {
     }
 
     fn build_messages(&self, messages: &[ChatMessage]) -> Vec<ApiMessage> {
-        messages
-            .iter()
-            .map(|m| {
-                let api_tool_calls = if m.tool_calls.is_empty() {
-                    None
-                } else {
-                    Some(
-                        m.tool_calls
-                            .iter()
-                            .map(|tc| ApiToolCall {
-                                id: tc.id.clone(),
-                                tool_type: "function".to_string(),
-                                function: ApiFunction {
-                                    name: tc.name.clone(),
-                                    arguments: tc.arguments.to_string(),
-                                },
-                            })
-                            .collect(),
-                    )
-                };
+        messages.iter().map(|m| {
+            let api_tool_calls = if m.tool_calls.is_empty() {
+                None
+            } else {
+                Some(m.tool_calls.iter().map(|tc| ApiToolCall {
+                    id: tc.id.clone(),
+                    tool_type: "function".to_string(),
+                    function: ApiFunction {
+                        name: tc.name.clone(),
+                        arguments: tc.arguments.to_string(),
+                    },
+                }).collect())
+            };
 
-                // Assistant messages with only tool_calls should have content: null
-                let content = if m.content.is_empty() && m.role == Role::Assistant {
-                    None
-                } else {
-                    Some(m.content.clone())
-                };
+            // Assistant messages with only tool_calls should have content: null
+            let content = if m.content.is_empty() && m.role == Role::Assistant {
+                None
+            } else {
+                Some(m.content.clone())
+            };
 
-                ApiMessage {
-                    role: m.role,
-                    content,
-                    tool_call_id: m.tool_call_id.clone(),
-                    tool_calls: api_tool_calls,
-                }
-            })
-            .collect()
+            ApiMessage {
+                role: m.role,
+                content,
+                tool_call_id: m.tool_call_id.clone(),
+                tool_calls: api_tool_calls,
+            }
+        }).collect()
     }
 
     async fn send_request(&self, body: serde_json::Value) -> Result<ApiResponse, LlmError> {
         let url = format!("{}/v1/chat/completions", self.base_url);
-        let resp = self
-            .client
+        let resp = self.client
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.api_key))
             .json(&body)
             .send()
             .await
-            .map_err(|e| LlmError::RequestFailed {
-                reason: format!("{e:?}"),
-            })?;
+            .map_err(|e| LlmError::RequestFailed { reason: format!("{e:?}") })?;
 
         if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
-            return Err(LlmError::AuthFailed {
-                provider: self.model.clone(),
-            });
+            return Err(LlmError::AuthFailed { provider: self.model.clone() });
         }
 
         if !resp.status().is_success() {
@@ -99,9 +82,7 @@ impl OpenAiCompatProvider {
 
         resp.json::<ApiResponse>()
             .await
-            .map_err(|e| LlmError::RequestFailed {
-                reason: e.to_string(),
-            })
+            .map_err(|e| LlmError::RequestFailed { reason: e.to_string() })
     }
 }
 
@@ -126,19 +107,16 @@ impl LlmProvider for OpenAiCompatProvider {
         messages: Vec<ChatMessage>,
         tools: Vec<ToolDefinition>,
     ) -> Result<CompletionResponse, LlmError> {
-        let api_tools: Vec<serde_json::Value> = tools
-            .iter()
-            .map(|t| {
-                serde_json::json!({
-                    "type": "function",
-                    "function": {
-                        "name": t.name,
-                        "description": t.description,
-                        "parameters": t.parameters,
-                    }
-                })
+        let api_tools: Vec<serde_json::Value> = tools.iter().map(|t| {
+            serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": t.name,
+                    "description": t.description,
+                    "parameters": t.parameters,
+                }
             })
-            .collect();
+        }).collect();
 
         let body = serde_json::json!({
             "model": self.model,
@@ -200,8 +178,7 @@ struct ApiFunction {
 }
 
 fn extract_text(resp: &ApiResponse) -> String {
-    resp.choices
-        .first()
+    resp.choices.first()
         .and_then(|c| c.message.content.clone())
         .unwrap_or_default()
 }
@@ -209,28 +186,18 @@ fn extract_text(resp: &ApiResponse) -> String {
 fn extract_completion(resp: &ApiResponse) -> CompletionResponse {
     let choice = match resp.choices.first() {
         Some(c) => c,
-        None => {
-            return CompletionResponse {
-                content: None,
-                tool_calls: vec![],
-            }
-        }
+        None => return CompletionResponse { content: None, tool_calls: vec![] },
     };
 
-    let tool_calls: Vec<ToolCall> = choice
-        .message
-        .tool_calls
-        .iter()
-        .map(|tc| {
-            let args = serde_json::from_str(&tc.function.arguments)
-                .unwrap_or(serde_json::Value::Object(Default::default()));
-            ToolCall {
-                id: tc.id.clone(),
-                name: tc.function.name.clone(),
-                arguments: args,
-            }
-        })
-        .collect();
+    let tool_calls: Vec<ToolCall> = choice.message.tool_calls.iter().map(|tc| {
+        let args = serde_json::from_str(&tc.function.arguments)
+            .unwrap_or(serde_json::Value::Object(Default::default()));
+        ToolCall {
+            id: tc.id.clone(),
+            name: tc.function.name.clone(),
+            arguments: args,
+        }
+    }).collect();
 
     CompletionResponse {
         content: choice.message.content.clone(),

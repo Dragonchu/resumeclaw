@@ -16,7 +16,11 @@ pub struct ResumeAgent {
 }
 
 impl ResumeAgent {
-    pub fn new(llm: Arc<dyn LlmProvider>, channels: ChannelManager, tools: ToolRegistry) -> Self {
+    pub fn new(
+        llm: Arc<dyn LlmProvider>,
+        channels: ChannelManager,
+        tools: ToolRegistry,
+    ) -> Self {
         let system_prompt = r#"你是一个专业的简历助手。你帮助用户修改和优化他们的 LaTeX 简历。
 
 你有以下工具:
@@ -88,11 +92,7 @@ impl ResumeAgent {
         let mut all_attachments = Vec::new();
 
         for round in 0..MAX_TOOL_ROUNDS {
-            let resp = match self
-                .llm
-                .complete_with_tools(messages.clone(), tool_defs.clone())
-                .await
-            {
+            let resp = match self.llm.complete_with_tools(messages.clone(), tool_defs.clone()).await {
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!(error = %e, "LLM error");
@@ -107,12 +107,7 @@ impl ResumeAgent {
 
             tracing::info!(
                 round,
-                tools = resp
-                    .tool_calls
-                    .iter()
-                    .map(|tc| tc.name.as_str())
-                    .collect::<Vec<_>>()
-                    .join(", "),
+                tools = resp.tool_calls.iter().map(|tc| tc.name.as_str()).collect::<Vec<_>>().join(", "),
                 "executing tool calls"
             );
 
@@ -136,10 +131,6 @@ impl ResumeAgent {
         }
 
         tracing::warn!("hit max tool rounds ({MAX_TOOL_ROUNDS})");
-        (
-            "I've reached the maximum number of steps. Please try again with a simpler request."
-                .to_string(),
-            all_attachments,
-        )
+        ("I've reached the maximum number of steps. Please try again with a simpler request.".to_string(), all_attachments)
     }
 }
