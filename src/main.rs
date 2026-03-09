@@ -14,6 +14,10 @@ use channel::discord::DiscordChannel;
 use channel::manager::ChannelManager;
 use tools::ToolRegistry;
 
+/// Keep the implicit `../resume` probe aligned with `workspace::init`, which copies
+/// the first available initial resume from these fallback names.
+const DEFAULT_TEMPLATE_CANDIDATES: &[&str] = &["resume2026.tex", "resume.tex", "resume-zh_CN.tex"];
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
