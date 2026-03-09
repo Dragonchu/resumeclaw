@@ -56,12 +56,10 @@ impl AnthropicProvider {
                     if let Some(ref tool_call_id) = m.tool_call_id {
                         return AnthropicMessage {
                             role: role.to_string(),
-                            content: AnthropicContent::Blocks(vec![
-                                ContentBlock::ToolResult {
-                                    tool_use_id: tool_call_id.clone(),
-                                    content: m.content.clone(),
-                                }
-                            ]),
+                            content: AnthropicContent::Blocks(vec![ContentBlock::ToolResult {
+                                tool_use_id: tool_call_id.clone(),
+                                content: m.content.clone(),
+                            }]),
                         };
                     }
                 }
@@ -78,7 +76,8 @@ impl AnthropicProvider {
 
     async fn send_request(&self, body: serde_json::Value) -> Result<AnthropicResponse, LlmError> {
         let url = format!("{}/v1/messages", self.base_url);
-        let resp = self.client
+        let resp = self
+            .client
             .post(&url)
             .header("x-api-key", &self.api_key)
             .header("anthropic-version", "2023-06-01")
@@ -86,10 +85,14 @@ impl AnthropicProvider {
             .json(&body)
             .send()
             .await
-            .map_err(|e| LlmError::RequestFailed { reason: e.to_string() })?;
+            .map_err(|e| LlmError::RequestFailed {
+                reason: e.to_string(),
+            })?;
 
         if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
-            return Err(LlmError::AuthFailed { provider: "anthropic".to_string() });
+            return Err(LlmError::AuthFailed {
+                provider: "anthropic".to_string(),
+            });
         }
 
         if !resp.status().is_success() {
@@ -102,7 +105,9 @@ impl AnthropicProvider {
 
         resp.json::<AnthropicResponse>()
             .await
-            .map_err(|e| LlmError::RequestFailed { reason: e.to_string() })
+            .map_err(|e| LlmError::RequestFailed {
+                reason: e.to_string(),
+            })
     }
 }
 
@@ -135,13 +140,16 @@ impl LlmProvider for AnthropicProvider {
     ) -> Result<CompletionResponse, LlmError> {
         let (system, msgs) = self.split_messages(&messages);
 
-        let api_tools: Vec<serde_json::Value> = tools.iter().map(|t| {
-            serde_json::json!({
-                "name": t.name,
-                "description": t.description,
-                "input_schema": t.parameters,
+        let api_tools: Vec<serde_json::Value> = tools
+            .iter()
+            .map(|t| {
+                serde_json::json!({
+                    "name": t.name,
+                    "description": t.description,
+                    "input_schema": t.parameters,
+                })
             })
-        }).collect();
+            .collect();
 
         let mut body = serde_json::json!({
             "model": self.model,
@@ -230,7 +238,11 @@ fn extract_completion(resp: &AnthropicResponse) -> CompletionResponse {
     }
 
     CompletionResponse {
-        content: if text_parts.is_empty() { None } else { Some(text_parts.join("")) },
+        content: if text_parts.is_empty() {
+            None
+        } else {
+            Some(text_parts.join(""))
+        },
         tool_calls,
     }
 }

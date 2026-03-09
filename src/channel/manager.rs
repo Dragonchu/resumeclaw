@@ -9,7 +9,7 @@ use crate::channel::{Channel, IncomingMessage, OutgoingResponse};
 pub struct ChannelManager {
     channels: HashMap<String, Arc<dyn Channel>>,
     rx: mpsc::UnboundedReceiver<IncomingMessage>,
-    tx: mpsc::UnboundedSender<IncomingMessage>,
+    tx: Option<mpsc::UnboundedSender<IncomingMessage>>,
 }
 
 impl ChannelManager {
@@ -18,7 +18,7 @@ impl ChannelManager {
         Self {
             channels: HashMap::new(),
             rx,
-            tx,
+            tx: Some(tx),
         }
     }
 
@@ -29,9 +29,13 @@ impl ChannelManager {
 
     /// Start all registered channels. Each channel pushes messages
     /// into the shared sender; the manager receives them from `rx`.
-    pub async fn start_all(&self) -> anyhow::Result<()> {
+    pub async fn start_all(&mut self) -> anyhow::Result<()> {
+        let tx = self
+            .tx
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("channels already started"))?;
         for channel in self.channels.values() {
-            channel.start(self.tx.clone()).await?;
+            channel.start(tx.clone()).await?;
             tracing::info!(channel = channel.name(), "channel started");
         }
         Ok(())
@@ -48,9 +52,10 @@ impl ChannelManager {
         msg: &IncomingMessage,
         resp: OutgoingResponse,
     ) -> anyhow::Result<()> {
-        let channel = self.channels.get(&msg.channel).ok_or_else(|| {
-            anyhow::anyhow!("unknown channel: {}", msg.channel)
-        })?;
+        let channel = self
+            .channels
+            .get(&msg.channel)
+            .ok_or_else(|| anyhow::anyhow!("unknown channel: {}", msg.channel))?;
         channel.respond(msg, resp).await
     }
 
