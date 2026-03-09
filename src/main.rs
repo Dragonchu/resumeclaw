@@ -117,19 +117,15 @@ fn resolve_template_dir(uses_dev_examples: bool) -> anyhow::Result<PathBuf> {
     }
 
     if uses_dev_examples {
-        let dev_template_dir = default_dev_template_dir();
+        let dev_template_dir = bundled_template_dir()?;
         tracing::info!(
             path = %dev_template_dir.display(),
-            "template dir not configured; using bundled dev example template"
+            "template dir not configured; using bundled default template in dev mode"
         );
         return Ok(dev_template_dir);
     }
 
     bundled_template_dir()
-}
-
-fn default_dev_template_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("dev/template")
 }
 
 fn default_dev_mock_script_path() -> PathBuf {

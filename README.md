@@ -56,7 +56,7 @@ LLM_API_KEY=xxx
 如果你在开发环境里**没有配置 `LLM_PROVIDER`**，程序不会退出报错，而是会自动进入零配置开发模式：
 
 - 自动启用仓库内置的 `mock` Provider
-- 自动读取 `dev/template/resume.tex` 作为示例简历
+- 自动读取仓库内置的 `templates/default/` 完整模板作为示例简历
 - 自动读取 `dev/mock-llm-script.example.json` 作为示例对话脚本
 - 默认启用 CLI + Agent 的实时调试模式（即使没有 Discord 配置）
 

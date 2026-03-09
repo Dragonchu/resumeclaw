@@ -118,10 +118,8 @@ fn copy_support_files(template_dir: &Path, workspace_dir: &Path) -> anyhow::Resu
         }
 
         let dst = workspace_dir.join(name);
-        if !dst.try_exists().unwrap_or(false) {
-            std::fs::copy(entry.path(), &dst)?;
-            tracing::debug!(file = name, "copied template support file");
-        }
+        std::fs::copy(entry.path(), &dst)?;
+        tracing::debug!(file = name, "copied template support file");
     }
 
     Ok(())
@@ -133,12 +131,12 @@ fn copy_support_directories(template_dir: &Path, workspace_dir: &Path) -> anyhow
         return Ok(());
     }
 
-    copy_dir_all_if_missing(&fonts_src, &workspace_dir.join("fonts"))?;
+    copy_dir_all(&fonts_src, &workspace_dir.join("fonts"))?;
     tracing::debug!("copied fonts directory");
     Ok(())
 }
 
-fn copy_dir_all_if_missing(src: &Path, dst: &Path) -> anyhow::Result<()> {
+fn copy_dir_all(src: &Path, dst: &Path) -> anyhow::Result<()> {
     std::fs::create_dir_all(dst)?;
 
     for entry in std::fs::read_dir(src)? {
@@ -148,8 +146,8 @@ fn copy_dir_all_if_missing(src: &Path, dst: &Path) -> anyhow::Result<()> {
         let file_type = entry.file_type()?;
 
         if file_type.is_dir() {
-            copy_dir_all_if_missing(&src_path, &dst_path)?;
-        } else if file_type.is_file() && !dst_path.try_exists().unwrap_or(false) {
+            copy_dir_all(&src_path, &dst_path)?;
+        } else if file_type.is_file() {
             std::fs::copy(src_path, dst_path)?;
         }
     }
@@ -304,6 +302,30 @@ mod tests {
     }
 
     #[test]
+    fn overwrites_existing_top_level_support_files() {
+        let template_dir = TestDir::new("template-support-overwrite");
+        let workspace_dir = TestDir::new("workspace-support-overwrite");
+
+        write_file(template_dir.path(), "resume.cls", "new-class");
+        write_file(template_dir.path(), "resume.tex", "english");
+        write_file(template_dir.path(), "zh_CN-fonts.sty", "new-fonts");
+        write_file(workspace_dir.path(), "resume.cls", "old-class");
+        write_file(workspace_dir.path(), "zh_CN-fonts.sty", "old-fonts");
+
+        init(template_dir.path(), workspace_dir.path(), None).expect("initialize workspace");
+
+        assert_eq!(
+            std::fs::read_to_string(workspace_dir.path().join("resume.cls")).expect("read cls"),
+            "new-class"
+        );
+        assert_eq!(
+            std::fs::read_to_string(workspace_dir.path().join("zh_CN-fonts.sty"))
+                .expect("read fonts sty"),
+            "new-fonts"
+        );
+    }
+
+    #[test]
     fn copies_fonts_directory_recursively() {
         let template_dir = TestDir::new("template-fonts");
         let workspace_dir = TestDir::new("workspace-fonts");
@@ -328,6 +350,41 @@ mod tests {
             std::fs::read_to_string(workspace_dir.path().join("fonts/nested/license.txt"))
                 .expect("read copied nested file"),
             "license"
+        );
+    }
+
+    #[test]
+    fn overwrites_existing_fonts_directory_files() {
+        let template_dir = TestDir::new("template-fonts-overwrite");
+        let workspace_dir = TestDir::new("workspace-fonts-overwrite");
+        let template_fonts = template_dir.path().join("fonts");
+        let workspace_fonts = workspace_dir.path().join("fonts");
+
+        std::fs::create_dir_all(template_fonts.join("nested")).expect("create template font dirs");
+        std::fs::create_dir_all(workspace_fonts.join("nested"))
+            .expect("create workspace font dirs");
+        write_file(template_dir.path(), "resume.cls", "class");
+        write_file(template_dir.path(), "resume.tex", "english");
+        std::fs::write(template_fonts.join("FandolSong-Regular.otf"), "new-song")
+            .expect("write template font");
+        std::fs::write(template_fonts.join("nested/license.txt"), "new-license")
+            .expect("write template nested file");
+        std::fs::write(workspace_fonts.join("FandolSong-Regular.otf"), "old-song")
+            .expect("write workspace font");
+        std::fs::write(workspace_fonts.join("nested/license.txt"), "old-license")
+            .expect("write workspace nested file");
+
+        init(template_dir.path(), workspace_dir.path(), None).expect("initialize workspace");
+
+        assert_eq!(
+            std::fs::read_to_string(workspace_dir.path().join("fonts/FandolSong-Regular.otf"))
+                .expect("read copied font"),
+            "new-song"
+        );
+        assert_eq!(
+            std::fs::read_to_string(workspace_dir.path().join("fonts/nested/license.txt"))
+                .expect("read copied nested file"),
+            "new-license"
         );
     }
 
