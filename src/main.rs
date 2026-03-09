@@ -14,6 +14,10 @@ use channel::discord::DiscordChannel;
 use channel::manager::ChannelManager;
 use tools::ToolRegistry;
 
+/// Keep the implicit `../resume` probe aligned with `workspace::init`, which copies
+/// the first available initial resume from these fallback names.
+const DEFAULT_TEMPLATE_CANDIDATES: &[&str] = &["resume2026.tex", "resume.tex", "resume-zh_CN.tex"];
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -45,13 +49,13 @@ async fn main() -> anyhow::Result<()> {
     // Channels
     let mut channels = ChannelManager::new();
     channels.add(Arc::new(CliChannel));
-    tracing::info!("CLI + Agent realtime mode enabled");
+    tracing::info!("CLI channel enabled for Agent realtime mode");
 
     if let Some(token) = read_env("DISCORD_BOT_TOKEN") {
         channels.add(Arc::new(DiscordChannel::new(token)));
         tracing::info!("discord channel enabled");
     } else {
-        tracing::info!("no channel config found; using default CLI + Agent realtime mode");
+        tracing::info!("no optional channel config found; continuing with CLI + Agent realtime mode");
     }
 
     // Run
@@ -68,7 +72,7 @@ struct LlmConfig {
 
 fn resolve_llm_config() -> LlmConfig {
     if let Some(provider) = read_env("LLM_PROVIDER") {
-        let model = read_env("LLM_MODEL").unwrap_or_else(|| "deepseek-chat".to_string());
+        let model = read_env("LLM_MODEL").unwrap_or_else(|| default_model_for(&provider));
         let mock_script_path = if provider == "mock" {
             let script = read_env("MOCK_LLM_SCRIPT_PATH")
                 .map(PathBuf::from)
@@ -115,7 +119,7 @@ fn resolve_template_dir(uses_dev_examples: bool) -> PathBuf {
     }
 
     let sibling_template_dir = PathBuf::from("../resume");
-    if sibling_template_dir.exists() {
+    if is_default_template_dir_available(&sibling_template_dir) {
         sibling_template_dir
     } else {
         let dev_template_dir = default_dev_template_dir();
@@ -135,6 +139,21 @@ fn default_dev_mock_script_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("dev/mock-llm-script.example.json")
 }
 
+fn is_default_template_dir_available(path: &std::path::Path) -> bool {
+    path.is_dir()
+        && DEFAULT_TEMPLATE_CANDIDATES
+            .iter()
+            .any(|name| path.join(name).exists())
+}
+
+fn default_model_for(provider: &str) -> String {
+    match provider {
+        "mock" => "mock-dev".to_string(),
+        _ => "deepseek-chat".to_string(),
+    }
+}
+
+/// Read an environment variable, trimming whitespace and treating blank values as unset.
 fn read_env(key: &str) -> Option<String> {
     std::env::var(key)
         .ok()
@@ -151,7 +170,8 @@ fn default_workspace_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
         if let Some(home) = std::env::var_os("HOME") {
-            return PathBuf::from(home).join("Library/Application Support/resumeclaw");
+            return PathBuf::from(home)
+                .join("Library/Application Support/resumeclaw");
         }
     }
 

@@ -152,10 +152,13 @@ fn cargo_run_defaults_to_dev_mock_provider_and_example_template() {
         .spawn()
         .expect("spawn resumeclaw");
 
+    // "进入开发模式" means "enter development mode" and exercises the bundled
+    // zero-config mock path with a real CLI message.
+    let dev_mode_input = "进入开发模式\n";
     {
         let stdin = child.stdin.as_mut().expect("child stdin");
         stdin
-            .write_all("进入开发模式\n".as_bytes())
+            .write_all(dev_mode_input.as_bytes())
             .expect("write stdin");
     }
 
