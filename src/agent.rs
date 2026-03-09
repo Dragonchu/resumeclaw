@@ -165,7 +165,7 @@ impl ResumeAgent {
         }
 
         let Some(definition) = self.tools.definition(name) else {
-            return Some((format!("未知开发模式命令：/{name}\n输入 /list 查看可直接调用的工具。"), vec![]));
+            return Some((format!("未知工具：/{name}\n输入 /list 查看可直接调用的工具。"), vec![]));
         };
 
         let args = match parse_direct_tool_args(&definition, raw_args) {

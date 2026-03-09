@@ -1,0 +1,44 @@
+% !TEX program = xelatex
+
+\documentclass{resume}
+
+\begin{document}
+\pagenumbering{gobble}
+
+\name{Your Name}
+
+\basicInfo{
+  \email{your.email@example.com} \textperiodcentered\ 
+  \phone{(+86) 123-4567-8901} \textperiodcentered\ 
+  \homepage[portfolio.example.com]{https://portfolio.example.com}
+}
+
+\section{Education}
+\datedsubsection{\textbf{Example University}, City, Country}{2020 -- 2024}
+B.S. in Computer Science, GPA: 3.8 / 4.0
+
+\section{Experience}
+\datedsubsection{\textbf{Example Company}, Remote}{2024 -- Present}
+\role{Software Engineer}{Backend Platform}
+\begin{itemize}
+  \item Built internal developer tools that reduced repetitive resume editing work.
+  \item Collaborated with product and design teammates to ship user-facing features.
+  \item Improved service reliability with automated monitoring and release checks.
+\end{itemize}
+
+\section{Projects}
+\datedsubsection{\textbf{ResumeClaw}}{Open Source}
+\role{Rust, Tokio, LLM Tools}{https://github.com/Dragonchu/resumeclaw}
+\begin{itemize}
+  \item Maintained a multi-channel AI assistant for editing LaTeX resumes through chat.
+  \item Integrated automated PDF compilation so every revision can be reviewed quickly.
+\end{itemize}
+
+\section{Skills}
+\begin{itemize}
+  \item Languages: Rust, Python, TypeScript, SQL
+  \item Tooling: Git, Docker, Linux, CI/CD
+  \item Languages Spoken: English (Fluent), Mandarin (Professional)
+\end{itemize}
+
+\end{document}

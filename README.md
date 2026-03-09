@@ -28,7 +28,7 @@
 
 - Rust toolchain (cargo)
 - Tectonic（macOS: `brew install tectonic`，Linux: `apt install tectonic`）
-- 简历模板仓库（默认从 `../resume` 读取，包含 `.cls`、字体等）
+- （可选）外部简历模板目录，用于覆盖项目内置模板
 
 ### 环境变量
 
@@ -44,7 +44,8 @@ DEEPSEEK_API_KEY=sk-xxx        # 对应 provider 的 API Key
 DISCORD_BOT_TOKEN=xxx
 
 # 可选 - 路径
-RESUME_TEMPLATE_DIR=../resume  # 简历模板目录，默认 ../resume
+RESUME_TEMPLATE_DIR=../resume  # 外部模板目录；不设置时使用仓库内置模板
+RESUME_TEMPLATE=resume-zh_CN.tex  # 初始模板文件名，填写模板目录下任意 .tex 文件名（仅文件名，不允许包含路径分隔符）
 WORKSPACE_DIR=                 # 工作区目录，默认为平台标准路径（见下方说明）
 
 # 可选 - 自定义 LLM 端点（LLM_PROVIDER=custom 时使用）
@@ -55,7 +56,7 @@ LLM_API_KEY=xxx
 如果你在开发环境里**没有配置 `LLM_PROVIDER`**，程序不会退出报错，而是会自动进入零配置开发模式：
 
 - 自动启用仓库内置的 `mock` Provider
-- 自动读取 `dev/template/resume.tex` 作为示例简历
+- 自动读取仓库内置的 `templates/default/` 完整模板作为示例简历
 - 自动读取 `dev/mock-llm-script.example.json` 作为示例对话脚本
 - 默认启用 CLI + Agent 的实时调试模式（即使没有 Discord 配置）
 
@@ -71,7 +72,9 @@ LLM_API_KEY=xxx
 | Linux   | `$XDG_DATA_HOME/resumeclaw`（默认 `~/.local/share/resumeclaw`） |
 | Fallback | `~/.resumeclaw`                           |
 
-首次启动会自动从模板目录复制 `.cls`、`.sty` 等支持文件，并 symlink 字体目录。
+首次启动会自动从模板目录同步顶层支持文件（如 `.cls`、`.sty`、图片资源等）以及 `fonts/` 目录，并在工作区生成 `resume.tex`。后续再次启动时，这些支持资源也会按模板目录内容覆盖更新，而已存在的 `resume.tex` 仍会保留。模板目录下任意 `.tex` 文件都会被视为可选模板；默认优先使用内置英文模板，如需中文模板可设置 `RESUME_TEMPLATE=resume-zh_CN.tex` 后再启动。
+
+内置中文模板现已直接附带可再分发的 Fandol OpenType 字体文件，并优先从工作区内的 `fonts/` 目录加载，因此在没有系统中文字体的环境里也可以离线编译。字体许可证文件随模板一并提供在 `templates/default/fonts/` 下。
 
 ### 启动服务
 
@@ -179,7 +182,7 @@ proxychains4 cargo run
 本项目受到以下开源项目的启发，在此表示感谢：
 
 - [ironclaw](https://github.com/nearai/ironclaw) — Rust 实现的多渠道 AI Agent 框架，本项目的架构设计参考了其频道抽象和 LLM Provider 模式。MIT License.
-- [resume](https://github.com/billryan/resume) — 简洁优雅的 LaTeX 中英文简历模板，本项目使用其模板类和字体配置作为简历编辑基础。MIT License.
+- [resume](https://github.com/billryan/resume) — 简洁优雅的 LaTeX 中英文简历模板，本项目内置默认模板的版式设计参考了该项目。MIT License.
 
 ## License
 

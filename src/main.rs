@@ -27,11 +27,12 @@ async fn main() -> anyhow::Result<()> {
     let llm_config = resolve_llm_config();
 
     // Workspace
-    let template_dir = resolve_template_dir(llm_config.uses_dev_examples);
+    let template_dir = resolve_template_dir(llm_config.uses_dev_examples)?;
     let workspace_dir = std::env::var("WORKSPACE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| default_workspace_dir());
-    let workspace = workspace::init(&template_dir, &workspace_dir)?;
+    let initial_template = std::env::var("RESUME_TEMPLATE").ok();
+    let workspace = workspace::init(&template_dir, &workspace_dir, initial_template.as_deref())?;
     tracing::info!(path = %workspace.display(), "workspace initialized");
 
     // LLM
@@ -114,46 +115,25 @@ fn resolve_llm_config() -> LlmConfig {
     }
 }
 
-fn resolve_template_dir(uses_dev_examples: bool) -> PathBuf {
+fn resolve_template_dir(uses_dev_examples: bool) -> anyhow::Result<PathBuf> {
     if let Some(path) = read_env("RESUME_TEMPLATE_DIR") {
-        return PathBuf::from(path);
+        return Ok(PathBuf::from(path));
     }
 
     if uses_dev_examples {
-        let dev_template_dir = default_dev_template_dir();
+        let dev_template_dir = bundled_template_dir()?;
         tracing::info!(
             path = %dev_template_dir.display(),
-            "template dir not configured; using bundled dev example template"
+            "template dir not configured; using bundled default template in dev mode"
         );
-        return dev_template_dir;
+        return Ok(dev_template_dir);
     }
 
-    let sibling_template_dir = PathBuf::from("../resume");
-    if is_default_template_dir_available(&sibling_template_dir) {
-        sibling_template_dir
-    } else {
-        let dev_template_dir = default_dev_template_dir();
-        tracing::info!(
-            path = %dev_template_dir.display(),
-            "template dir not found; using bundled dev example template"
-        );
-        dev_template_dir
-    }
-}
-
-fn default_dev_template_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("dev/template")
+    bundled_template_dir()
 }
 
 fn default_dev_mock_script_path() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("dev/mock-llm-script.example.json")
-}
-
-fn is_default_template_dir_available(path: &std::path::Path) -> bool {
-    path.is_dir()
-        && DEFAULT_TEMPLATE_CANDIDATES
-            .iter()
-            .any(|name| path.join(name).exists())
 }
 
 fn default_model_for(provider: &str) -> String {
@@ -180,8 +160,7 @@ fn default_workspace_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
         if let Some(home) = std::env::var_os("HOME") {
-            return PathBuf::from(home)
-                .join("Library/Application Support/resumeclaw");
+            return PathBuf::from(home).join("Library/Application Support/resumeclaw");
         }
     }
 
@@ -198,4 +177,29 @@ fn default_workspace_dir() -> PathBuf {
     // Fallback
     let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
     PathBuf::from(home).join(".resumeclaw")
+}
+
+fn bundled_template_dir() -> anyhow::Result<PathBuf> {
+    if let Some(candidate) = std::env::current_exe()
+        .ok()
+        .and_then(|exe_path| exe_path.parent().map(|exe_dir| exe_dir.join("templates").join("default")))
+        .filter(|candidate| candidate.is_dir())
+    {
+        return Ok(candidate);
+    }
+
+    let manifest_templates = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("templates")
+        .join("default");
+    if manifest_templates.is_dir() {
+        return Ok(manifest_templates);
+    }
+
+    anyhow::bail!(
+        "bundled template directory not found next to the executable or under {}",
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("templates")
+            .join("default")
+            .display()
+    )
 }
