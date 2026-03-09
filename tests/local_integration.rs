@@ -29,7 +29,7 @@ impl Drop for TestDirGuard {
 fn unique_test_dir(name: &str) -> PathBuf {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .expect("system time before unix epoch")
+        .expect("system time is before UNIX epoch")
         .as_nanos();
     std::env::temp_dir().join(format!("resumeclaw-{name}-{nanos}"))
 }

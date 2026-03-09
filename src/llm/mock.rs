@@ -60,7 +60,7 @@ impl MockProvider {
 
     fn next_step(&self, messages: &[ChatMessage]) -> Result<CompletionResponse, LlmError> {
         let mut steps = self.steps.lock().map_err(|_| LlmError::RequestFailed {
-            reason: "internal error: mock provider lock poisoned; a previous mock LLM call likely panicked".to_string(),
+            reason: "internal error: mock provider lock poisoned; a previous mock LLM call panicked".to_string(),
         })?;
         let step = steps.pop_front().ok_or_else(|| LlmError::RequestFailed {
             reason: "mock script exhausted before conversation completed".to_string(),
