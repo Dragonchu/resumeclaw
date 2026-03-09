@@ -81,6 +81,15 @@ cargo run
 
 启动后可在 CLI 直接输入消息，或通过 Discord 与 Bot 对话。若未提供任何 LLM/Channel 配置，则会自动进入上述零配置开发模式。
 
+开发模式下，CLI 还支持直接调用工具：
+
+- `/list`：展示当前 Agent 已注册的全部工具
+- `/read_resume`：直接执行无参工具
+- `/write_resume {"content":"...完整 tex 内容..."}`：直接传 JSON 参数调用工具
+- 对于只有 `content` 字符串参数的工具，也可以直接写成 `/write_resume ...`
+
+直接输入普通文本时，消息仍会按原流程发送给 Agent；如果工具产出 PDF 等附件，在 macOS CLI 下会直接调用 `open` 打开文件。
+
 ## 本地集成测试
 
 为了在不接入 Discord、也不调用真实大模型的情况下验证主流程，项目支持 `LLM_PROVIDER=mock` 的脚本化本地测试方案。这个方案参考了不少成熟开源项目常用的 **fixture / transcript 驱动测试** 思路：把模型输出固定成 JSON 脚本，让 Agent、工具调用、CLI 交互走真实代码路径，但外部依赖全部替换为本地可控输入。

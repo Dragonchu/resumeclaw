@@ -47,6 +47,7 @@ impl Channel for CliChannel {
         println!("{}", resp.content);
         for path in &resp.attachments {
             println!("[attachment: {}]", path.display());
+            try_open_attachment(path)?;
         }
         Ok(())
     }
@@ -54,4 +55,24 @@ impl Channel for CliChannel {
     async fn shutdown(&self) -> anyhow::Result<()> {
         Ok(())
     }
+}
+
+#[cfg_attr(not(target_os = "macos"), allow(unused_variables))]
+fn try_open_attachment(path: &std::path::Path) -> anyhow::Result<()> {
+    #[cfg(target_os = "macos")]
+    {
+        let status = std::process::Command::new("open")
+            .arg(path)
+            .status()
+            .map_err(|e| anyhow::anyhow!("failed to run 'open' for {}: {e}", path.display()))?;
+        if !status.success() {
+            return Err(anyhow::anyhow!(
+                "'open' exited with status {} for {}",
+                status,
+                path.display()
+            ));
+        }
+    }
+
+    Ok(())
 }

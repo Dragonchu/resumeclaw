@@ -192,3 +192,58 @@ fn cargo_run_defaults_to_dev_mock_provider_and_example_template() {
         "workspace resume did not come from bundled dev template:\n{resume}"
     );
 }
+
+#[test]
+fn cargo_run_dev_mode_supports_listing_and_direct_tool_calls() {
+    let root = TestDirGuard::new(unique_test_dir("dev-cli-tools"));
+    let workspace_dir = root.path().join("workspace");
+    fs::create_dir_all(root.path()).expect("create test root");
+
+    let exe = env!("CARGO_BIN_EXE_resumeclaw");
+    let mut child = Command::new(exe)
+        .current_dir(root.path())
+        .env_remove("DISCORD_BOT_TOKEN")
+        .env_remove("LLM_PROVIDER")
+        .env_remove("LLM_MODEL")
+        .env_remove("MOCK_LLM_SCRIPT_PATH")
+        .env_remove("RESUME_TEMPLATE_DIR")
+        .env("WORKSPACE_DIR", &workspace_dir)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("spawn resumeclaw");
+
+    {
+        let stdin = child.stdin.as_mut().expect("child stdin");
+        stdin
+            .write_all("/list\n/read_resume\n".as_bytes())
+            .expect("write stdin");
+    }
+
+    let output = child.wait_with_output().expect("wait for process");
+    assert!(
+        output.status.success(),
+        "process failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("/read_resume"),
+        "stdout did not contain direct tool list output:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("/write_resume"),
+        "stdout did not contain write tool usage:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("直接调用 /read_resume 的结果"),
+        "stdout did not contain direct tool execution output:\n{stdout}"
+    );
+    assert!(
+        stdout.contains("Dev Example Resume"),
+        "stdout did not contain resume content from direct tool execution:\n{stdout}"
+    );
+}

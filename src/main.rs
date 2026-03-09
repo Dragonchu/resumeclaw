@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Run
-    let mut agent = ResumeAgent::new(llm, channels, tool_registry);
+    let mut agent = ResumeAgent::new(llm, channels, tool_registry, llm_config.uses_dev_examples);
     agent.run().await
 }
 
