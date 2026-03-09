@@ -62,20 +62,24 @@ pub fn init(
     // Copy initial resume template if no resume.tex exists yet
     let tex_dst = workspace_dir.join("resume.tex");
     if !tex_dst.exists() {
+        let mut copied = false;
         for name in template_candidates(initial_template) {
             let src = template_dir.join(name);
             if src.exists() {
                 std::fs::copy(&src, &tex_dst)?;
                 tracing::info!(template = name, "copied initial resume template");
-                return Ok(workspace_dir.to_path_buf());
+                copied = true;
+                break;
             }
         }
 
-        anyhow::bail!(
-            "no resume template found in {} (requested: {:?})",
-            template_dir.display(),
-            initial_template,
-        );
+        if !copied {
+            anyhow::bail!(
+                "no resume template found in {} (requested: {:?})",
+                template_dir.display(),
+                initial_template,
+            );
+        }
     }
 
     Ok(workspace_dir.to_path_buf())
