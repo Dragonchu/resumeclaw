@@ -72,7 +72,7 @@ LLM_API_KEY=xxx
 | Linux   | `$XDG_DATA_HOME/resumeclaw`（默认 `~/.local/share/resumeclaw`） |
 | Fallback | `~/.resumeclaw`                           |
 
-首次启动会自动从模板目录复制顶层支持文件（如 `.cls`、`.sty`、图片资源等）以及 `fonts/` 目录，并在工作区生成 `resume.tex`。模板目录下任意 `.tex` 文件都会被视为可选模板；默认优先使用内置英文模板，如需中文模板可设置 `RESUME_TEMPLATE=resume-zh_CN.tex` 后再启动。
+首次启动会自动从模板目录同步顶层支持文件（如 `.cls`、`.sty`、图片资源等）以及 `fonts/` 目录，并在工作区生成 `resume.tex`。后续再次启动时，这些支持资源也会按模板目录内容覆盖更新，而已存在的 `resume.tex` 仍会保留。模板目录下任意 `.tex` 文件都会被视为可选模板；默认优先使用内置英文模板，如需中文模板可设置 `RESUME_TEMPLATE=resume-zh_CN.tex` 后再启动。
 
 内置中文模板现已直接附带可再分发的 Fandol OpenType 字体文件，并优先从工作区内的 `fonts/` 目录加载，因此在没有系统中文字体的环境里也可以离线编译。字体许可证文件随模板一并提供在 `templates/default/fonts/` 下。
 

@@ -119,7 +119,7 @@ fn copy_support_files(template_dir: &Path, workspace_dir: &Path) -> anyhow::Resu
 
         let dst = workspace_dir.join(name);
         std::fs::copy(entry.path(), &dst)?;
-        tracing::debug!(file = name, "copied template support file");
+        tracing::debug!(file = name, "synced template support file");
     }
 
     Ok(())
@@ -132,7 +132,7 @@ fn copy_support_directories(template_dir: &Path, workspace_dir: &Path) -> anyhow
     }
 
     copy_dir_all(&fonts_src, &workspace_dir.join("fonts"))?;
-    tracing::debug!("copied fonts directory");
+    tracing::debug!("synced fonts directory");
     Ok(())
 }
 
