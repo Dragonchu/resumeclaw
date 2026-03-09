@@ -60,7 +60,7 @@ cargo run
 
 ### 环境要求
 
-- Rust toolchain（建议安装最新版稳定版）
+- Rust toolchain（建议安装最新稳定版）
 - `cargo`
 - [Tectonic](https://tectonic-typesetting.github.io/)（用于编译 LaTeX 为 PDF）
 
