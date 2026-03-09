@@ -361,4 +361,15 @@ mod tests {
         assert!(chinese_template.contains("\\usepackage{zh_CN-fonts}"));
         assert!(chinese_template.contains("\\usepackage{linespacing_fix}"));
     }
+
+    #[test]
+    fn bundled_english_class_has_font_fallbacks() {
+        let bundled_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates/default");
+        let resume_class =
+            std::fs::read_to_string(bundled_dir.join("resume.cls")).expect("read bundled class");
+
+        assert!(resume_class.contains("\\IfFontExistsTF{Latin Modern Roman}"));
+        assert!(resume_class.contains("\\IfFontExistsTF{TeX Gyre Termes}"));
+        assert!(resume_class.contains("\\IfFontExistsTF{TeX Gyre Pagella}"));
+    }
 }

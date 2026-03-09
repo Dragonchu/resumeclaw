@@ -19,7 +19,19 @@
 \hypersetup{hidelinks}
 \urlstyle{same}
 \defaultfontfeatures{Ligatures=TeX}
-\setmainfont{Latin Modern Roman}
+\IfFontExistsTF{Latin Modern Roman}{
+  \setmainfont{Latin Modern Roman}
+}{
+  \IfFontExistsTF{TeX Gyre Termes}{
+    \setmainfont{TeX Gyre Termes}
+  }{
+    \IfFontExistsTF{TeX Gyre Pagella}{
+      \setmainfont{TeX Gyre Pagella}
+    }{
+      \PackageWarningNoLine{resume}{No bundled serif fallback font found; using the TeX engine default Roman font}
+    }
+  }
+}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.35em}
