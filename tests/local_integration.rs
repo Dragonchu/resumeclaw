@@ -352,10 +352,14 @@ Initial Version
 
     {
         let stdin = child.stdin.as_mut().expect("child stdin");
+        let commands = concat!(
+            "/write_resume {\"content\":\"\\\\documentclass{article}\\n\\\\begin{document}\\nSecond Version\\n\\\\end{document}\\n\"}\n",
+            "/list_versions\n",
+            "/redirect_resume_version {\"offset\":-1}\n",
+            "/read_resume\n",
+        );
         stdin
-            .write_all(
-                b"/write_resume {\"content\":\"\\\\documentclass{article}\\n\\\\begin{document}\\nSecond Version\\n\\\\end{document}\\n\"}\n/list_versions\n/redirect_resume_version {\"offset\":-1}\n/read_resume\n",
-            )
+            .write_all(commands.as_bytes())
             .expect("write stdin");
     }
 

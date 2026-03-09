@@ -365,13 +365,21 @@ impl ToolHandler for ListVersions {
             };
         }
 
-        let mut lines = vec![format!("Current HEAD: v{}", head.unwrap_or(versions[0]))];
+        let current_head = head.or_else(|| versions.first().copied());
+        let mut lines = vec![match current_head {
+            Some(version) => format!("Current HEAD: v{version}"),
+            None => "Current HEAD: (unavailable)".to_string(),
+        }];
         for version in versions {
             let bytes = match tokio::fs::metadata(self.store.version_path(version)).await {
                 Ok(metadata) => metadata.len() as usize,
                 Err(_) => 0,
             };
-            let marker = if Some(version) == head { " [HEAD]" } else { "" };
+            let marker = if Some(version) == current_head {
+                " [HEAD]"
+            } else {
+                ""
+            };
             lines.push(format!("- v{version}{marker} ({bytes} bytes)"));
         }
 
