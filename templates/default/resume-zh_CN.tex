@@ -1,18 +1,8 @@
 % !TEX program = xelatex
 
 \documentclass{resume}
-
-\IfFontExistsTF{Noto Serif CJK SC}{
-  \setmainfont{Noto Serif CJK SC}
-}{
-  \IfFontExistsTF{Source Han Serif SC}{
-    \setmainfont{Source Han Serif SC}
-  }{
-    \IfFontExistsTF{FandolSong-Regular}{
-      \setmainfont{FandolSong-Regular}
-    }{}
-  }
-}
+\usepackage{zh_CN-fonts}
+\usepackage{linespacing_fix}
 
 \begin{document}
 \pagenumbering{gobble}

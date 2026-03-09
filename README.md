@@ -63,7 +63,9 @@ LLM_API_KEY=xxx
 | Linux   | `$XDG_DATA_HOME/resumeclaw`（默认 `~/.local/share/resumeclaw`） |
 | Fallback | `~/.resumeclaw`                           |
 
-首次启动会自动从模板目录复制 `.cls`、`.sty` 等支持文件，并在工作区生成 `resume.tex`。模板目录下任意 `.tex` 文件都会被视为可选模板；默认优先使用内置英文模板，如需中文模板可设置 `RESUME_TEMPLATE=resume-zh_CN.tex` 后再启动。
+首次启动会自动从模板目录复制顶层支持文件（如 `.cls`、`.sty`、图片资源等），并在工作区生成 `resume.tex`。模板目录下任意 `.tex` 文件都会被视为可选模板；默认优先使用内置英文模板，如需中文模板可设置 `RESUME_TEMPLATE=resume-zh_CN.tex` 后再启动。
+
+内置中文模板附带所需的 `.sty` 支持文件，并优先使用系统已安装的 Noto / Source Han CJK 字体，找不到时回退到常见 XeLaTeX 发行版自带的 Fandol 字体；出于上游字体二进制文件的版权限制，仓库不会直接打包 Adobe 字体文件。
 
 ### 启动服务
 

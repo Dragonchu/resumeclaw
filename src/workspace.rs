@@ -6,20 +6,6 @@
 
 use std::path::{Path, PathBuf};
 
-/// Supporting files needed from the template directory.
-const TEMPLATE_FILES: &[&str] = &[
-    "resume.cls",
-    "zh_CN-Adobefonts_external.sty",
-    "zh_CN-Adobefonts_internal.sty",
-    "NotoSansSC_external.sty",
-    "NotoSerifCJKsc_external.sty",
-    "linespacing_fix.sty",
-    "fontawesome.sty",
-    "fontawesomesymbols-xeluatex.tex",
-    "fontawesomesymbols-generic.tex",
-    "fontawesomesymbols-pdftex.tex",
-];
-
 /// Initialize the workspace directory.
 ///
 /// - Copies supporting LaTeX files (.cls, .sty, etc.) from template_dir
@@ -34,15 +20,7 @@ pub fn init(
 ) -> anyhow::Result<PathBuf> {
     std::fs::create_dir_all(workspace_dir)?;
 
-    // Copy supporting files (skip if already present)
-    for file in TEMPLATE_FILES {
-        let src = template_dir.join(file);
-        let dst = workspace_dir.join(file);
-        if src.exists() && !dst.try_exists().unwrap_or(false) {
-            std::fs::copy(&src, &dst)?;
-            tracing::debug!(file, "copied template file");
-        }
-    }
+    copy_support_files(template_dir, workspace_dir)?;
 
     // Symlink fonts directory (avoid copying large font files)
     let fonts_src = template_dir.join("fonts");
@@ -124,7 +102,7 @@ fn discover_templates(template_dir: &Path) -> anyhow::Result<Vec<String>> {
 
             let name = entry.file_name();
             let name = name.to_str()?;
-            if Path::new(name).extension().and_then(|ext| ext.to_str()) == Some("tex") {
+            if is_tex_file_name(name) {
                 Some(name.to_string())
             } else {
                 None
@@ -133,6 +111,38 @@ fn discover_templates(template_dir: &Path) -> anyhow::Result<Vec<String>> {
         .collect::<Vec<_>>();
     templates.sort();
     Ok(templates)
+}
+
+fn copy_support_files(template_dir: &Path, workspace_dir: &Path) -> anyhow::Result<()> {
+    for entry in std::fs::read_dir(template_dir)? {
+        let entry = match entry {
+            Ok(entry) => entry,
+            Err(_) => continue,
+        };
+        if !entry.file_type()?.is_file() {
+            continue;
+        }
+
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else {
+            continue;
+        };
+        if is_tex_file_name(name) {
+            continue;
+        }
+
+        let dst = workspace_dir.join(name);
+        if !dst.try_exists().unwrap_or(false) {
+            std::fs::copy(entry.path(), &dst)?;
+            tracing::debug!(file = name, "copied template support file");
+        }
+    }
+
+    Ok(())
+}
+
+fn is_tex_file_name(name: &str) -> bool {
+    Path::new(name).extension().and_then(|ext| ext.to_str()) == Some("tex")
 }
 
 fn validate_template_name(name: &str) -> anyhow::Result<String> {
@@ -245,6 +255,39 @@ mod tests {
     }
 
     #[test]
+    fn copies_top_level_support_files() {
+        let template_dir = TestDir::new("template-support");
+        let workspace_dir = TestDir::new("workspace-support");
+
+        write_file(template_dir.path(), "resume.cls", "class");
+        write_file(template_dir.path(), "resume.tex", "english");
+        write_file(template_dir.path(), "zh_CN-fonts.sty", "fonts");
+        write_file(template_dir.path(), "linespacing_fix.sty", "spacing");
+        write_file(template_dir.path(), "logo.png", "png");
+
+        init(template_dir.path(), workspace_dir.path(), None).expect("initialize workspace");
+
+        assert_eq!(
+            std::fs::read_to_string(workspace_dir.path().join("resume.cls")).expect("read cls"),
+            "class"
+        );
+        assert_eq!(
+            std::fs::read_to_string(workspace_dir.path().join("zh_CN-fonts.sty"))
+                .expect("read fonts sty"),
+            "fonts"
+        );
+        assert_eq!(
+            std::fs::read_to_string(workspace_dir.path().join("linespacing_fix.sty"))
+                .expect("read spacing sty"),
+            "spacing"
+        );
+        assert_eq!(
+            std::fs::read_to_string(workspace_dir.path().join("logo.png")).expect("read logo"),
+            "png"
+        );
+    }
+
+    #[test]
     fn treats_any_tex_file_as_a_template() {
         let template_dir = TestDir::new("template-list");
 
@@ -304,5 +347,18 @@ mod tests {
                 "aaa.tex".to_string(),
             ]
         );
+    }
+
+    #[test]
+    fn bundled_chinese_template_support_files_exist() {
+        let bundled_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("templates/default");
+        let chinese_template = std::fs::read_to_string(bundled_dir.join("resume-zh_CN.tex"))
+            .expect("read bundled chinese template");
+
+        assert!(bundled_dir.join("resume.cls").is_file());
+        assert!(bundled_dir.join("zh_CN-fonts.sty").is_file());
+        assert!(bundled_dir.join("linespacing_fix.sty").is_file());
+        assert!(chinese_template.contains("\\usepackage{zh_CN-fonts}"));
+        assert!(chinese_template.contains("\\usepackage{linespacing_fix}"));
     }
 }
