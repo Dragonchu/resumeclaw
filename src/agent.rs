@@ -1,8 +1,11 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use serde_json::json;
+
 use crate::channel::manager::ChannelManager;
 use crate::channel::{IncomingMessage, OutgoingResponse};
+use crate::llm::provider::ToolDefinition;
 use crate::llm::{ChatMessage, LlmProvider};
 use crate::tools::ToolRegistry;
 
@@ -12,6 +15,7 @@ pub struct ResumeAgent {
     llm: Arc<dyn LlmProvider>,
     channels: ChannelManager,
     tools: ToolRegistry,
+    dev_mode: bool,
     system_prompt: String,
 }
 
@@ -20,13 +24,14 @@ impl ResumeAgent {
         llm: Arc<dyn LlmProvider>,
         channels: ChannelManager,
         tools: ToolRegistry,
+        dev_mode: bool,
     ) -> Self {
         let system_prompt = r#"你是一个专业的简历助手。你帮助用户修改和优化他们的 LaTeX 简历。
 
 你有以下工具:
 - read_resume: 读取当前简历的 LaTeX 源文件
 - write_resume: 写入完整的 LaTeX 内容到简历文件
-- compile_resume: 使用 xelatex 编译简历为 PDF
+- compile_resume: 使用 tectonic 编译简历为 PDF
 
 工作流程:
 1. 收到用户请求后，先用 read_resume 读取当前简历内容
@@ -49,6 +54,7 @@ impl ResumeAgent {
             llm,
             channels,
             tools,
+            dev_mode,
             system_prompt,
         }
     }
@@ -83,6 +89,10 @@ impl ResumeAgent {
     }
 
     async fn handle(&self, msg: &IncomingMessage) -> (String, Vec<PathBuf>) {
+        if let Some(response) = self.handle_dev_cli_command(msg).await {
+            return response;
+        }
+
         let mut messages = vec![
             ChatMessage::system(&self.system_prompt),
             ChatMessage::user(&msg.content),
@@ -132,5 +142,117 @@ impl ResumeAgent {
 
         tracing::warn!("hit max tool rounds ({MAX_TOOL_ROUNDS})");
         ("I've reached the maximum number of steps. Please try again with a simpler request.".to_string(), all_attachments)
+    }
+
+    async fn handle_dev_cli_command(&self, msg: &IncomingMessage) -> Option<(String, Vec<PathBuf>)> {
+        if !self.dev_mode || msg.channel != "cli" {
+            return None;
+        }
+
+        let content = msg.content.trim();
+        if !content.starts_with('/') {
+            return None;
+        }
+
+        let command = content.trim_start_matches('/');
+        let (name, raw_args) = match command.split_once(' ') {
+            Some((name, raw_args)) => (name.trim(), raw_args.trim()),
+            None => (command.trim(), ""),
+        };
+
+        if name.eq_ignore_ascii_case("list") {
+            return Some((format_tool_list(&self.tools.definitions()), vec![]));
+        }
+
+        let Some(definition) = self.tools.definition(name) else {
+            return Some((format!("未知开发模式命令：/{name}\n输入 /list 查看可直接调用的工具。"), vec![]));
+        };
+
+        let args = match parse_direct_tool_args(&definition, raw_args) {
+            Ok(args) => args,
+            Err(err) => {
+                return Some((
+                    format!(
+                        "无法直接调用 /{}：{err}\n参数示例：{}",
+                        definition.name,
+                        direct_tool_usage(&definition)
+                    ),
+                    vec![],
+                ));
+            }
+        };
+
+        let result = self.tools.execute(&definition.name, args).await;
+        Some((format!("直接调用 /{} 的结果：\n{}", definition.name, result.text), result.attachments))
+    }
+}
+
+fn format_tool_list(tool_defs: &[ToolDefinition]) -> String {
+    let mut lines = vec![
+        "开发模式 CLI 可直接调用以下工具：".to_string(),
+        "/list - 展示所有可直接调用的工具".to_string(),
+        "直接输入普通消息时，仍会按原流程发送给 Agent。".to_string(),
+        String::new(),
+    ];
+
+    for tool in tool_defs {
+        lines.push(format!("- {}: {}", direct_tool_usage(tool), tool.description));
+    }
+
+    lines.join("\n")
+}
+
+fn direct_tool_usage(definition: &ToolDefinition) -> String {
+    if supports_raw_content_arg(definition) {
+        format!("/{} <text or JSON args>", definition.name)
+    } else if tool_accepts_args(definition) {
+        format!("/{} <JSON args>", definition.name)
+    } else {
+        format!("/{}", definition.name)
+    }
+}
+
+fn tool_accepts_args(definition: &ToolDefinition) -> bool {
+    let Some(properties) = definition
+        .parameters
+        .get("properties")
+        .and_then(serde_json::Value::as_object)
+    else {
+        return false;
+    };
+
+    !properties.is_empty()
+}
+
+fn supports_raw_content_arg(definition: &ToolDefinition) -> bool {
+    let Some(properties) = definition
+        .parameters
+        .get("properties")
+        .and_then(serde_json::Value::as_object)
+    else {
+        return false;
+    };
+
+    properties.len() == 1
+        && properties
+            .get("content")
+            .and_then(|value| value.get("type"))
+            .and_then(serde_json::Value::as_str)
+            == Some("string")
+}
+
+fn parse_direct_tool_args(
+    definition: &ToolDefinition,
+    raw_args: &str,
+) -> Result<serde_json::Value, String> {
+    if raw_args.is_empty() {
+        return Ok(json!({}));
+    }
+
+    match serde_json::from_str(raw_args) {
+        Ok(value @ serde_json::Value::Object(_)) => Ok(value),
+        Ok(_) => Err("参数必须是 JSON 对象".to_string()),
+        Err(_) if supports_raw_content_arg(definition) => Ok(json!({ "content": raw_args })),
+        Err(err) => Err(format!("参数不是合法 JSON：{err}")),
     }
 }
