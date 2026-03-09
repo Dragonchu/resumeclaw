@@ -64,7 +64,8 @@ fn default_workspace_dir() -> PathBuf {
     #[cfg(target_os = "macos")]
     {
         if let Some(home) = std::env::var_os("HOME") {
-            return PathBuf::from(home).join("Library/Application Support/resumeclaw");
+            return PathBuf::from(home)
+                .join("Library/Application Support/resumeclaw");
         }
     }
 
