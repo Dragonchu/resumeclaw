@@ -20,11 +20,10 @@ async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
     proxy::init();
 
+    let llm_config = resolve_llm_config();
+
     // Workspace
-    let template_dir = match std::env::var("RESUME_TEMPLATE_DIR") {
-        Ok(path) => PathBuf::from(path),
-        Err(_) => bundled_template_dir()?,
-    };
+    let template_dir = resolve_template_dir(llm_config.uses_dev_examples)?;
     let workspace_dir = std::env::var("WORKSPACE_DIR")
         .map(PathBuf::from)
         .unwrap_or_else(|_| default_workspace_dir());
@@ -33,9 +32,15 @@ async fn main() -> anyhow::Result<()> {
     tracing::info!(path = %workspace.display(), "workspace initialized");
 
     // LLM
-    let provider = std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "deepseek".to_string());
-    let model = std::env::var("LLM_MODEL").unwrap_or_else(|_| "deepseek-chat".to_string());
-    let llm = llm::create_provider(&provider, &model)?;
+    if let Some(mock_script_path) = llm_config.mock_script_path.as_ref() {
+        std::env::set_var("MOCK_LLM_SCRIPT_PATH", mock_script_path);
+    }
+    if llm_config.mock_repeat_on_exhaustion {
+        std::env::set_var("MOCK_LLM_REPEAT_ON_EXHAUSTION", "1");
+    } else {
+        std::env::remove_var("MOCK_LLM_REPEAT_ON_EXHAUSTION");
+    }
+    let llm = llm::create_provider(&llm_config.provider, &llm_config.model)?;
 
     // Tools
     let mut tool_registry = ToolRegistry::new();
@@ -46,15 +51,104 @@ async fn main() -> anyhow::Result<()> {
     // Channels
     let mut channels = ChannelManager::new();
     channels.add(Arc::new(CliChannel));
+    tracing::info!("CLI channel enabled for Agent realtime mode");
 
-    if let Ok(token) = std::env::var("DISCORD_BOT_TOKEN") {
+    if let Some(token) = read_env("DISCORD_BOT_TOKEN") {
         channels.add(Arc::new(DiscordChannel::new(token)));
         tracing::info!("discord channel enabled");
+    } else {
+        tracing::info!("no optional channel config found; continuing with CLI + Agent realtime mode");
     }
 
     // Run
-    let mut agent = ResumeAgent::new(llm, channels, tool_registry);
+    let mut agent = ResumeAgent::new(llm, channels, tool_registry, llm_config.uses_dev_examples);
     agent.run().await
+}
+
+struct LlmConfig {
+    provider: String,
+    model: String,
+    mock_script_path: Option<PathBuf>,
+    /// When true, the bundled dev mock keeps replying with a simple echo once
+    /// the example script is exhausted, instead of surfacing a mock error.
+    mock_repeat_on_exhaustion: bool,
+    uses_dev_examples: bool,
+}
+
+fn resolve_llm_config() -> LlmConfig {
+    if let Some(provider) = read_env("LLM_PROVIDER") {
+        let model = read_env("LLM_MODEL").unwrap_or_else(|| default_model_for(&provider));
+        let mock_script_path = if provider == "mock" {
+            let script = read_env("MOCK_LLM_SCRIPT_PATH")
+                .map(PathBuf::from)
+                .unwrap_or_else(default_dev_mock_script_path);
+            tracing::info!(path = %script.display(), "mock provider enabled");
+            Some(script)
+        } else {
+            None
+        };
+
+        return LlmConfig {
+            provider,
+            model,
+            mock_script_path,
+            mock_repeat_on_exhaustion: false,
+            uses_dev_examples: false,
+        };
+    }
+
+    let script = default_dev_mock_script_path();
+    tracing::warn!(
+        path = %script.display(),
+        "LLM provider not configured; falling back to bundled dev mock provider"
+    );
+    LlmConfig {
+        provider: "mock".to_string(),
+        model: "mock-dev".to_string(),
+        mock_script_path: Some(script),
+        mock_repeat_on_exhaustion: true,
+        uses_dev_examples: true,
+    }
+}
+
+fn resolve_template_dir(uses_dev_examples: bool) -> anyhow::Result<PathBuf> {
+    if let Some(path) = read_env("RESUME_TEMPLATE_DIR") {
+        return Ok(PathBuf::from(path));
+    }
+
+    if uses_dev_examples {
+        let dev_template_dir = default_dev_template_dir();
+        tracing::info!(
+            path = %dev_template_dir.display(),
+            "template dir not configured; using bundled dev example template"
+        );
+        return Ok(dev_template_dir);
+    }
+
+    bundled_template_dir()
+}
+
+fn default_dev_template_dir() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("dev/template")
+}
+
+fn default_dev_mock_script_path() -> PathBuf {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("dev/mock-llm-script.example.json")
+}
+
+fn default_model_for(provider: &str) -> String {
+    match provider {
+        "mock" => "mock-dev".to_string(),
+        _ => "deepseek-chat".to_string(),
+    }
+}
+
+/// Read an environment variable, trimming whitespace and treating blank values as unset.
+fn read_env(key: &str) -> Option<String> {
+    std::env::var(key)
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
 }
 
 /// Platform-appropriate default workspace directory.
