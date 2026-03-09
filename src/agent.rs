@@ -32,11 +32,14 @@ impl ResumeAgent {
 - read_resume: 读取当前简历的 LaTeX 源文件
 - write_resume: 写入完整的 LaTeX 内容到简历文件
 - compile_resume: 使用 tectonic 编译简历为 PDF
+- send_resume_email: 将当前编译好的简历 PDF 作为附件发送到指定邮箱，需要提供收件邮箱、邮件标题和正文
+- send_resume_email 只能发送到系统配置的允许邮箱列表
 
 工作流程:
 1. 收到用户请求后，先用 read_resume 读取当前简历内容
 2. 根据用户需求修改内容，用 write_resume 写入修改后的完整 .tex 文件
 3. 用 compile_resume 编译为 PDF，PDF 会自动发送给用户
+4. 如果用户要求把简历发送到邮箱，确认 PDF 已编译后，再调用 send_resume_email 发送邮件；收件人必须在系统允许列表中
 
 简历使用自定义 LaTeX 类 (resume.cls)，主要命令:
 - \name{姓名}
@@ -47,7 +50,7 @@ impl ResumeAgent {
 - \begin{itemize} \item 要点 \end{itemize}
 
 注意: write_resume 必须写入完整的 .tex 文件内容，包括 \documentclass 和 \begin{document} 等。
-修改后务必 compile_resume 编译并发送 PDF。"#
+修改后务必 compile_resume 编译并发送 PDF。如果用户明确要求邮件投递，再调用 send_resume_email。"#
             .to_string();
 
         Self {
@@ -102,7 +105,11 @@ impl ResumeAgent {
         let mut all_attachments = Vec::new();
 
         for round in 0..MAX_TOOL_ROUNDS {
-            let resp = match self.llm.complete_with_tools(messages.clone(), tool_defs.clone()).await {
+            let resp = match self
+                .llm
+                .complete_with_tools(messages.clone(), tool_defs.clone())
+                .await
+            {
                 Ok(r) => r,
                 Err(e) => {
                     tracing::error!(error = %e, "LLM error");
@@ -117,7 +124,12 @@ impl ResumeAgent {
 
             tracing::info!(
                 round,
-                tools = resp.tool_calls.iter().map(|tc| tc.name.as_str()).collect::<Vec<_>>().join(", "),
+                tools = resp
+                    .tool_calls
+                    .iter()
+                    .map(|tc| tc.name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", "),
                 "executing tool calls"
             );
 
@@ -141,7 +153,11 @@ impl ResumeAgent {
         }
 
         tracing::warn!("hit max tool rounds ({MAX_TOOL_ROUNDS})");
-        ("I've reached the maximum number of steps. Please try again with a simpler request.".to_string(), all_attachments)
+        (
+            "I've reached the maximum number of steps. Please try again with a simpler request."
+                .to_string(),
+            all_attachments,
+        )
     }
 
     async fn handle_dev_cli_command(&self, msg: &IncomingMessage) -> Option<(String, Vec<PathBuf>)> {
@@ -165,7 +181,7 @@ impl ResumeAgent {
         }
 
         let Some(definition) = self.tools.definition(name) else {
-            return Some((format!("未知工具：/{name}\n输入 /list 查看可直接调用的工具。"), vec![]));
+            return Some((format!("未知开发模式命令：/{name}\n输入 /list 查看可直接调用的工具。"), vec![]));
         };
 
         let args = match parse_direct_tool_args(&definition, raw_args) {

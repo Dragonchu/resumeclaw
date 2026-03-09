@@ -1,6 +1,7 @@
 mod agent;
 mod channel;
 mod llm;
+mod mailer;
 mod proxy;
 mod tools;
 mod workspace;
@@ -51,6 +52,7 @@ async fn main() -> anyhow::Result<()> {
     tool_registry.register(tools::resume::ReadResume::new(&workspace));
     tool_registry.register(tools::resume::WriteResume::new(&workspace));
     tool_registry.register(tools::resume::CompileResume::new(&workspace));
+    tool_registry.register(tools::email::SendResumeEmail::new(&workspace));
 
     // Channels
     let mut channels = ChannelManager::new();

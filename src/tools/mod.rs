@@ -2,6 +2,7 @@
 //!
 //! Tools are functions the LLM can call to interact with the workspace.
 
+pub mod email;
 pub mod resume;
 
 use std::path::PathBuf;
