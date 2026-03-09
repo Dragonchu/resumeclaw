@@ -33,6 +33,7 @@ pub struct SmtpConfig {
     from: String,
     from_name: Option<String>,
     security: SmtpSecurity,
+    allowed_recipients: Vec<String>,
 }
 
 impl SmtpConfig {
@@ -46,24 +47,25 @@ impl SmtpConfig {
     {
         let host = required_env(&get, "SMTP_HOST")?;
         let from = required_env(&get, "SMTP_FROM")?;
-        let port = get("SMTP_PORT")
+        let security = SmtpSecurity::parse(get_trimmed(&get, "SMTP_SECURITY").as_deref().unwrap_or("starttls"))?;
+        let port = get_trimmed(&get, "SMTP_PORT")
             .map(|value| {
                 value
                     .parse::<u16>()
                     .map_err(|_| MailError::Config(format!("invalid SMTP_PORT '{value}'")))
             })
             .transpose()?
-            .unwrap_or(587);
-        let username = get("SMTP_USERNAME").filter(|value| !value.trim().is_empty());
-        let password = get("SMTP_PASSWORD").filter(|value| !value.trim().is_empty());
+            .unwrap_or_else(|| default_port(security));
+        let username = get_trimmed(&get, "SMTP_USERNAME");
+        let password = get_trimmed(&get, "SMTP_PASSWORD");
         if username.is_some() ^ password.is_some() {
             return Err(MailError::Config(
                 "SMTP_USERNAME and SMTP_PASSWORD must be set together".to_string(),
             ));
         }
 
-        let from_name = get("SMTP_FROM_NAME").filter(|value| !value.trim().is_empty());
-        let security = SmtpSecurity::parse(get("SMTP_SECURITY").as_deref().unwrap_or("starttls"))?;
+        let from_name = get_trimmed(&get, "SMTP_FROM_NAME");
+        let allowed_recipients = parse_allowed_recipients(&get)?;
 
         Ok(Self {
             host,
@@ -73,7 +75,13 @@ impl SmtpConfig {
             from,
             from_name,
             security,
+            allowed_recipients,
         })
+    }
+
+    fn allows_recipient(&self, recipient: &str) -> bool {
+        let normalized = normalize_value(recipient);
+        self.allowed_recipients.iter().any(|allowed| allowed == &normalized)
     }
 }
 
@@ -109,6 +117,9 @@ pub async fn send_email(request: EmailRequest) -> Result<(), MailError> {
         .to
         .parse()
         .map_err(|_| MailError::InvalidRecipient(request.to.clone()))?;
+    if !config.allows_recipient(&request.to) {
+        return Err(MailError::RecipientNotAllowed(request.to));
+    }
 
     let message = Message::builder()
         .from(Mailbox::new(config.from_name.clone(), from_address))
@@ -150,12 +161,50 @@ pub async fn send_email(request: EmailRequest) -> Result<(), MailError> {
     Ok(())
 }
 
-fn required_env<F>(get: &F, key: &str) -> Result<String, MailError>
+fn default_port(security: SmtpSecurity) -> u16 {
+    match security {
+        SmtpSecurity::StartTls => 587,
+        SmtpSecurity::Tls => 465,
+        SmtpSecurity::Plain => 25,
+    }
+}
+
+fn get_trimmed<F>(get: &F, key: &str) -> Option<String>
 where
     F: Fn(&str) -> Option<String>,
 {
     get(key)
-        .filter(|value| !value.trim().is_empty())
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+}
+
+fn normalize_value(value: &str) -> String {
+    value.trim().to_ascii_lowercase()
+}
+
+fn parse_allowed_recipients<F>(get: &F) -> Result<Vec<String>, MailError>
+where
+    F: Fn(&str) -> Option<String>,
+{
+    let raw = required_env(get, "SMTP_ALLOWED_RECIPIENTS")?;
+    let recipients: Vec<String> = raw
+        .split(',')
+        .map(normalize_value)
+        .filter(|value| !value.is_empty())
+        .collect();
+    if recipients.is_empty() {
+        return Err(MailError::Config(
+            "SMTP_ALLOWED_RECIPIENTS must contain at least one email address".to_string(),
+        ));
+    }
+    Ok(recipients)
+}
+
+fn required_env<F>(get: &F, key: &str) -> Result<String, MailError>
+where
+    F: Fn(&str) -> Option<String>,
+{
+    get_trimmed(get, key)
         .ok_or_else(|| MailError::Config(format!("missing required environment variable {key}")))
 }
 
@@ -169,6 +218,8 @@ pub enum MailError {
     Config(String),
     #[error("invalid recipient email address: {0}")]
     InvalidRecipient(String),
+    #[error("recipient email address is not in SMTP_ALLOWED_RECIPIENTS: {0}")]
+    RecipientNotAllowed(String),
     #[error("failed to build email: {0}")]
     Build(String),
     #[error("failed to configure SMTP transport: {0}")]
@@ -191,10 +242,14 @@ mod tests {
     use super::{default_resume_attachment, SmtpConfig};
 
     #[test]
-    fn smtp_config_uses_defaults() {
+    fn smtp_config_uses_starttls_defaults() {
         let vars = HashMap::from([
-            ("SMTP_HOST", "smtp.example.com".to_string()),
-            ("SMTP_FROM", "bot@example.com".to_string()),
+            ("SMTP_HOST", " smtp.example.com ".to_string()),
+            ("SMTP_FROM", " bot@example.com ".to_string()),
+            ("SMTP_ALLOWED_RECIPIENTS", " user@example.com ".to_string()),
+            ("SMTP_USERNAME", " smtp-user ".to_string()),
+            ("SMTP_PASSWORD", " smtp-pass ".to_string()),
+            ("SMTP_FROM_NAME", " Resume Bot ".to_string()),
         ]);
 
         let config =
@@ -203,7 +258,10 @@ mod tests {
         assert_eq!(config.host, "smtp.example.com");
         assert_eq!(config.port, 587);
         assert_eq!(config.from, "bot@example.com");
-        assert!(config.username.is_none());
+        assert_eq!(config.username.as_deref(), Some("smtp-user"));
+        assert_eq!(config.password.as_deref(), Some("smtp-pass"));
+        assert_eq!(config.from_name.as_deref(), Some("Resume Bot"));
+        assert!(config.allows_recipient("USER@example.com"));
     }
 
     #[test]
@@ -211,6 +269,7 @@ mod tests {
         let vars = HashMap::from([
             ("SMTP_HOST", "smtp.example.com".to_string()),
             ("SMTP_FROM", "bot@example.com".to_string()),
+            ("SMTP_ALLOWED_RECIPIENTS", "user@example.com".to_string()),
             ("SMTP_USERNAME", "user".to_string()),
         ]);
 
@@ -219,6 +278,44 @@ mod tests {
         assert!(err
             .to_string()
             .contains("SMTP_USERNAME and SMTP_PASSWORD must be set together"));
+    }
+
+    #[test]
+    fn smtp_config_uses_security_specific_default_ports() {
+        let tls_vars = HashMap::from([
+            ("SMTP_HOST", "smtp.example.com".to_string()),
+            ("SMTP_FROM", "bot@example.com".to_string()),
+            ("SMTP_ALLOWED_RECIPIENTS", "user@example.com".to_string()),
+            ("SMTP_SECURITY", "tls".to_string()),
+        ]);
+        let plain_vars = HashMap::from([
+            ("SMTP_HOST", "smtp.example.com".to_string()),
+            ("SMTP_FROM", "bot@example.com".to_string()),
+            ("SMTP_ALLOWED_RECIPIENTS", "user@example.com".to_string()),
+            ("SMTP_SECURITY", "plain".to_string()),
+        ]);
+
+        let tls_config =
+            SmtpConfig::from_lookup(|key| tls_vars.get(key).cloned()).expect("tls config should parse");
+        let plain_config = SmtpConfig::from_lookup(|key| plain_vars.get(key).cloned())
+            .expect("plain config should parse");
+
+        assert_eq!(tls_config.port, 465);
+        assert_eq!(plain_config.port, 25);
+    }
+
+    #[test]
+    fn smtp_config_requires_allowed_recipients() {
+        let vars = HashMap::from([
+            ("SMTP_HOST", "smtp.example.com".to_string()),
+            ("SMTP_FROM", "bot@example.com".to_string()),
+        ]);
+
+        let err =
+            SmtpConfig::from_lookup(|key| vars.get(key).cloned()).expect_err("config should fail");
+        assert!(err
+            .to_string()
+            .contains("missing required environment variable SMTP_ALLOWED_RECIPIENTS"));
     }
 
     #[test]

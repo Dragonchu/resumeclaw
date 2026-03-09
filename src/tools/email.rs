@@ -24,7 +24,7 @@ impl ToolHandler for SendResumeEmail {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "send_resume_email".to_string(),
-            description: "Send the current compiled resume PDF to a specified email address. Requires the target email, subject, and plain-text body. Call compile_resume before this tool if the PDF is not up to date.".to_string(),
+            description: "Send the current compiled resume PDF to a specified email address. Requires the target email, subject, and plain-text body. The recipient must be listed in SMTP_ALLOWED_RECIPIENTS. Call compile_resume before this tool if the PDF is not up to date.".to_string(),
             parameters: serde_json::json!({
                 "type": "object",
                 "properties": {

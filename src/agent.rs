@@ -24,12 +24,13 @@ impl ResumeAgent {
 - write_resume: 写入完整的 LaTeX 内容到简历文件
 - compile_resume: 使用 xelatex 编译简历为 PDF
 - send_resume_email: 将当前编译好的简历 PDF 作为附件发送到指定邮箱，需要提供收件邮箱、邮件标题和正文
+- send_resume_email 只能发送到系统配置的允许邮箱列表
 
 工作流程:
 1. 收到用户请求后，先用 read_resume 读取当前简历内容
 2. 根据用户需求修改内容，用 write_resume 写入修改后的完整 .tex 文件
 3. 用 compile_resume 编译为 PDF，PDF 会自动发送给用户
-4. 如果用户要求把简历发送到邮箱，确认 PDF 已编译后，再调用 send_resume_email 发送邮件
+4. 如果用户要求把简历发送到邮箱，确认 PDF 已编译后，再调用 send_resume_email 发送邮件；收件人必须在系统允许列表中
 
 简历使用自定义 LaTeX 类 (resume.cls)，主要命令:
 - \name{姓名}

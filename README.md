@@ -54,12 +54,13 @@ LLM_API_KEY=xxx
 
 # 可选 - SMTP 邮件发送（send_resume_email tool 使用）
 SMTP_HOST=smtp.example.com
-SMTP_PORT=587
+SMTP_PORT=587                 # 可选；默认值随 SMTP_SECURITY 变化：starttls=587, tls/ssl=465, plain=25
 SMTP_FROM=bot@example.com
 SMTP_FROM_NAME=resumeclaw
 SMTP_USERNAME=bot@example.com
 SMTP_PASSWORD=xxx
 SMTP_SECURITY=starttls       # starttls / tls(也接受 ssl) / plain
+SMTP_ALLOWED_RECIPIENTS=me@example.com,hr@example.com  # 必填；仅允许投递到这些邮箱
 ```
 
 ### 工作区路径
