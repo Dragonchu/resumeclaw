@@ -50,7 +50,10 @@ async fn main() -> anyhow::Result<()> {
     // Tools
     let mut tool_registry = ToolRegistry::new();
     tool_registry.register(tools::resume::ReadResume::new(&workspace));
+    tool_registry.register(tools::resume::ListVersions::new(&workspace));
+    tool_registry.register(tools::resume::GetResumeByVersion::new(&workspace));
     tool_registry.register(tools::resume::WriteResume::new(&workspace));
+    tool_registry.register(tools::resume::RedirectResumeVersion::new(&workspace));
     tool_registry.register(tools::resume::CompileResume::new(&workspace));
     tool_registry.register(tools::email::SendResumeEmail::new(&workspace));
 
