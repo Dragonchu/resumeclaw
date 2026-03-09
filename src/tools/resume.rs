@@ -18,9 +18,7 @@ pub struct ReadResume {
 
 impl ReadResume {
     pub fn new(workspace: &Path) -> Self {
-        Self {
-            workspace: workspace.to_path_buf(),
-        }
+        Self { workspace: workspace.to_path_buf() }
     }
 }
 
@@ -41,10 +39,7 @@ impl ToolHandler for ReadResume {
     async fn execute(&self, _args: serde_json::Value) -> ToolResult {
         let path = self.workspace.join("resume.tex");
         match tokio::fs::read_to_string(&path).await {
-            Ok(content) => ToolResult {
-                text: content,
-                attachments: vec![],
-            },
+            Ok(content) => ToolResult { text: content, attachments: vec![] },
             Err(e) => ToolResult {
                 text: format!("Error reading resume.tex: {e}"),
                 attachments: vec![],
@@ -63,9 +58,7 @@ pub struct WriteResume {
 
 impl WriteResume {
     pub fn new(workspace: &Path) -> Self {
-        Self {
-            workspace: workspace.to_path_buf(),
-        }
+        Self { workspace: workspace.to_path_buf() }
     }
 }
 
@@ -91,12 +84,10 @@ impl ToolHandler for WriteResume {
     async fn execute(&self, args: serde_json::Value) -> ToolResult {
         let content = match args.get("content").and_then(|v| v.as_str()) {
             Some(c) => c,
-            None => {
-                return ToolResult {
-                    text: "Error: missing 'content' parameter".to_string(),
-                    attachments: vec![],
-                }
-            }
+            None => return ToolResult {
+                text: "Error: missing 'content' parameter".to_string(),
+                attachments: vec![],
+            },
         };
 
         let path = self.workspace.join("resume.tex");
@@ -123,9 +114,7 @@ pub struct CompileResume {
 
 impl CompileResume {
     pub fn new(workspace: &Path) -> Self {
-        Self {
-            workspace: workspace.to_path_buf(),
-        }
+        Self { workspace: workspace.to_path_buf() }
     }
 }
 
@@ -154,12 +143,10 @@ impl ToolHandler for CompileResume {
 
         let output = match output {
             Ok(o) => o,
-            Err(e) => {
-                return ToolResult {
-                    text: format!("Failed to run xelatex: {e}. Is xelatex installed?"),
-                    attachments: vec![],
-                }
-            }
+            Err(e) => return ToolResult {
+                text: format!("Failed to run xelatex: {e}. Is xelatex installed?"),
+                attachments: vec![],
+            },
         };
 
         let stdout = String::from_utf8_lossy(&output.stdout);
@@ -190,9 +177,7 @@ impl ToolHandler for CompileResume {
                 .collect::<Vec<_>>()
                 .join("\n");
             ToolResult {
-                text: format!(
-                    "Compilation failed.\n\nstderr:\n{stderr}\n\nlog (last 50 lines):\n{log}"
-                ),
+                text: format!("Compilation failed.\n\nstderr:\n{stderr}\n\nlog (last 50 lines):\n{log}"),
                 attachments: vec![],
             }
         }

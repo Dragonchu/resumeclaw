@@ -19,14 +19,7 @@ pub fn init() {
         std::env::set_var("NO_PROXY", "*");
         std::env::set_var("no_proxy", "*");
         // Clear any leftover proxy env vars to be safe.
-        for key in [
-            "http_proxy",
-            "HTTP_PROXY",
-            "https_proxy",
-            "HTTPS_PROXY",
-            "all_proxy",
-            "ALL_PROXY",
-        ] {
+        for key in ["http_proxy", "HTTP_PROXY", "https_proxy", "HTTPS_PROXY", "all_proxy", "ALL_PROXY"] {
             std::env::remove_var(key);
         }
         tracing::info!("PROXY_MODE=external: cleared proxy env vars, set NO_PROXY=*");
