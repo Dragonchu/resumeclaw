@@ -48,6 +48,14 @@ impl ToolRegistry {
         self.tools.iter().map(|t| t.definition()).collect()
     }
 
+    /// Get one tool definition by name.
+    pub fn definition(&self, name: &str) -> Option<ToolDefinition> {
+        self.tools.iter().find_map(|tool| {
+            let definition = tool.definition();
+            (definition.name == name).then_some(definition)
+        })
+    }
+
     /// Execute a tool by name.
     pub async fn execute(&self, name: &str, args: serde_json::Value) -> ToolResult {
         for tool in &self.tools {

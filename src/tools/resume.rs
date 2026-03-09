@@ -1,5 +1,6 @@
 //! Resume editing and compilation tools.
 
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use async_trait::async_trait;
@@ -123,7 +124,7 @@ impl ToolHandler for CompileResume {
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: "compile_resume".to_string(),
-            description: "Compile the resume LaTeX file to PDF using xelatex. Returns the compilation result. On success, the PDF will be automatically sent to the user.".to_string(),
+            description: "Compile the resume LaTeX file to PDF using tectonic. Returns the compilation result. On success, the PDF will be automatically sent to the user.".to_string(),
             parameters: serde_json::json!({
                 "type": "object",
                 "properties": {},
@@ -133,9 +134,7 @@ impl ToolHandler for CompileResume {
     }
 
     async fn execute(&self, _args: serde_json::Value) -> ToolResult {
-        let output = tokio::process::Command::new("xelatex")
-            .arg("-interaction=nonstopmode")
-            .arg("-halt-on-error")
+        let output = tokio::process::Command::new(tectonic_bin())
             .arg("resume.tex")
             .current_dir(&self.workspace)
             .output()
@@ -144,7 +143,7 @@ impl ToolHandler for CompileResume {
         let output = match output {
             Ok(o) => o,
             Err(e) => return ToolResult {
-                text: format!("Failed to run xelatex: {e}. Is xelatex installed?"),
+                text: format!("Failed to run tectonic: {e}. Is tectonic installed?"),
                 attachments: vec![],
             },
         };
@@ -161,7 +160,7 @@ impl ToolHandler for CompileResume {
                 }
             } else {
                 ToolResult {
-                    text: "xelatex exited successfully but resume.pdf was not found.".to_string(),
+                    text: "tectonic exited successfully but resume.pdf was not found.".to_string(),
                     attachments: vec![],
                 }
             }
@@ -181,5 +180,82 @@ impl ToolHandler for CompileResume {
                 attachments: vec![],
             }
         }
+    }
+}
+
+/// Resolve the tectonic executable path, allowing tests to override it.
+fn tectonic_bin() -> OsString {
+    std::env::var_os("TECTONIC_BIN").unwrap_or_else(|| OsString::from("tectonic"))
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::fs;
+    use std::os::unix::fs::PermissionsExt;
+    use std::sync::Mutex;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::*;
+    use crate::tools::ToolHandler;
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    fn unique_test_dir(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time before unix epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!("resumeclaw-{name}-{nanos}"))
+    }
+
+    #[tokio::test]
+    async fn compile_resume_uses_tectonic_and_returns_pdf_attachment() {
+        let _env_lock = ENV_LOCK.lock().expect("lock env");
+
+        let root = unique_test_dir("tectonic-compile");
+        fs::create_dir_all(&root).expect("create root");
+        fs::write(
+            root.join("resume.tex"),
+            r"\documentclass{article}
+\begin{document}
+Test
+\end{document}
+",
+        )
+        .expect("write resume.tex");
+
+        let compiler_path = root.join("fake-tectonic.sh");
+        fs::write(
+            &compiler_path,
+            r#"#!/bin/sh
+printf '%s\n' "$@" > tectonic.args
+: > resume.pdf
+"#,
+        )
+        .expect("write fake tectonic");
+        let mut permissions = fs::metadata(&compiler_path)
+            .expect("stat fake tectonic")
+            .permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&compiler_path, permissions).expect("chmod fake tectonic");
+
+        let old_tectonic_bin = std::env::var_os("TECTONIC_BIN");
+        std::env::set_var("TECTONIC_BIN", &compiler_path);
+
+        let result = CompileResume::new(&root).execute(serde_json::json!({})).await;
+
+        if let Some(old_tectonic_bin) = old_tectonic_bin {
+            std::env::set_var("TECTONIC_BIN", old_tectonic_bin);
+        } else {
+            std::env::remove_var("TECTONIC_BIN");
+        }
+
+        assert_eq!(result.text, "Compilation successful. PDF generated.");
+        assert_eq!(result.attachments, vec![root.join("resume.pdf")]);
+
+        let args = fs::read_to_string(root.join("tectonic.args")).expect("read tectonic args");
+        assert_eq!(args, "resume.tex\n");
+
+        fs::remove_dir_all(&root).expect("remove temp dir");
     }
 }
