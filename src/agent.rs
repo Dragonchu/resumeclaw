@@ -31,7 +31,7 @@ impl ResumeAgent {
 你有以下工具:
 - read_resume: 读取当前简历的 LaTeX 源文件
 - write_resume: 写入完整的 LaTeX 内容到简历文件
-- compile_resume: 使用 xelatex 编译简历为 PDF
+- compile_resume: 使用 tectonic 编译简历为 PDF
 
 工作流程:
 1. 收到用户请求后，先用 read_resume 读取当前简历内容

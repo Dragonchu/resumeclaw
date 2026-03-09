@@ -7,7 +7,7 @@
 - [x] 多渠道接入：Discord 机器人 + 本地 CLI
 - [x] 多 LLM 后端：DeepSeek、OpenAI、Anthropic、Ollama、Groq、Together，支持自定义 OpenAI 兼容端点
 - [x] Tool Calling 驱动的简历编辑：LLM 通过工具读取、修改 LaTeX 源文件
-- [x] 自动编译：修改后调用 `xelatex` 编译为 PDF
+- [x] 自动编译：修改后调用 `tectonic` 编译为 PDF
 - [x] PDF 自动发送：编译成功后通过 Discord 直接发送 PDF 文件
 - [x] 独立工作区：简历模板和编辑文件存放在平台标准数据目录，不污染模板仓库
 - [x] 代理支持：原生 HTTP 代理 / proxychains 外部代理两种模式
@@ -27,7 +27,7 @@
 ### 前置依赖
 
 - Rust toolchain (cargo)
-- XeLaTeX（macOS: `brew install --cask mactex`，Linux: `apt install texlive-xetex`）
+- Tectonic（macOS: `brew install tectonic`，Linux: `apt install tectonic`）
 - 简历模板仓库（默认从 `../resume` 读取，包含 `.cls`、字体等）
 
 ### 环境变量
