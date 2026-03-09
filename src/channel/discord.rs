@@ -53,10 +53,9 @@ impl Channel for DiscordChannel {
     }
 
     async fn respond(&self, msg: &IncomingMessage, resp: OutgoingResponse) -> anyhow::Result<()> {
-        let http = self
-            .http
-            .get()
-            .ok_or_else(|| anyhow::anyhow!("discord not started yet"))?;
+        let http = self.http.get().ok_or_else(|| {
+            anyhow::anyhow!("discord not started yet")
+        })?;
 
         let channel_id: u64 = msg
             .thread_id
@@ -71,14 +70,10 @@ impl Channel for DiscordChannel {
             channel.say(http, &resp.content).await?;
         } else {
             use serenity::model::channel::AttachmentType;
-            let files: Vec<AttachmentType> = resp
-                .attachments
-                .iter()
+            let files: Vec<AttachmentType> = resp.attachments.iter()
                 .map(|p| AttachmentType::Path(p.as_path()))
                 .collect();
-            channel
-                .send_files(http, files, |m| m.content(&resp.content))
-                .await?;
+            channel.send_files(http, files, |m| m.content(&resp.content)).await?;
         }
 
         Ok(())

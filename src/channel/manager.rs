@@ -48,10 +48,9 @@ impl ChannelManager {
         msg: &IncomingMessage,
         resp: OutgoingResponse,
     ) -> anyhow::Result<()> {
-        let channel = self
-            .channels
-            .get(&msg.channel)
-            .ok_or_else(|| anyhow::anyhow!("unknown channel: {}", msg.channel))?;
+        let channel = self.channels.get(&msg.channel).ok_or_else(|| {
+            anyhow::anyhow!("unknown channel: {}", msg.channel)
+        })?;
         channel.respond(msg, resp).await
     }
 
