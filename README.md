@@ -73,6 +73,57 @@ cargo run
 
 启动后可在 CLI 直接输入消息，或通过 Discord 与 Bot 对话。
 
+## 本地集成测试
+
+为了在不接入 Discord、也不调用真实大模型的情况下验证主流程，项目支持 `LLM_PROVIDER=mock` 的脚本化本地测试方案。这个方案参考了不少成熟开源项目常用的 **fixture / transcript 驱动测试** 思路：把模型输出固定成 JSON 脚本，让 Agent、工具调用、CLI 交互走真实代码路径，但外部依赖全部替换为本地可控输入。
+
+### 运行自动化本地集成测试
+
+```bash
+cargo test --test local_integration
+```
+
+该测试会：
+
+- 使用 CLI channel，而不是 Discord
+- 使用 `mock` LLM provider 读取本地 JSON 脚本
+- 初始化临时模板目录和工作区
+- 驱动真实的 `read_resume` / `write_resume` 工具链
+
+### 手动本地冒烟测试
+
+准备一个 mock 脚本，例如：
+
+```json
+[
+  {
+    "expect_last_user_message": "请先读取我的简历",
+    "tool_calls": [
+      { "id": "call-read", "name": "read_resume", "arguments": {} }
+    ]
+  },
+  {
+    "content": "我已经读取完简历，可以继续下一步。",
+    "tool_calls": []
+  }
+]
+```
+
+其中 `expect_last_user_message` 是可选字段，用来断言 mock fixture 收到的最后一条用户消息，适合在本地集成测试里校验 CLI 输入是否真的走到了 LLM 层。
+
+然后运行：
+
+```bash
+export LLM_PROVIDER=mock
+export LLM_MODEL=mock-local
+export MOCK_LLM_SCRIPT_PATH=/absolute/path/to/mock-llm.json
+export RESUME_TEMPLATE_DIR=/absolute/path/to/your/template
+export WORKSPACE_DIR=/absolute/path/to/your/workspace
+cargo run
+```
+
+此时可以直接在 CLI 输入消息，验证 Agent 主流程，而无需配置 Discord Token 或真实模型 API Key。
+
 ## 代理配置
 
 ### 方式一：原生 HTTP 代理（仅 LLM API 走代理）
